@@ -1,0 +1,4 @@
+flet
+flet_fastapi
+uvicorn
+cryptography
