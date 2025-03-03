@@ -195,21 +195,27 @@ class SettingsTab:
     
     def save_theme_setting(self, e):
         """
-        Save the theme setting.
+        Save the theme setting and update the application theme.
         
         Args:
             e: Change event
         """
-        self.settings["theme"] = self.theme_dropdown.value
+        theme = e.control.value
+        self.settings["theme"] = theme
         self._save_settings()
         
-        # Apply theme
-        if self.theme_dropdown.value == "light":
+        # Update the main window theme
+        if theme == "light":
             self.main_window.page.theme_mode = ft.ThemeMode.LIGHT
-        elif self.theme_dropdown.value == "dark":
+            self.main_window.app_bar.actions[0].icon = ft.icons.DARK_MODE
+        elif theme == "dark":
             self.main_window.page.theme_mode = ft.ThemeMode.DARK
-        else:
+            self.main_window.app_bar.actions[0].icon = ft.icons.LIGHT_MODE
+        else:  # system
             self.main_window.page.theme_mode = ft.ThemeMode.SYSTEM
+            # Set icon based on system theme
+            is_dark = self.main_window.page.platform_brightness == ft.ThemeMode.DARK
+            self.main_window.app_bar.actions[0].icon = ft.icons.LIGHT_MODE if is_dark else ft.icons.DARK_MODE
         
         self.main_window.page.update()
     

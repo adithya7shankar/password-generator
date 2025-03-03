@@ -58,8 +58,14 @@ class GeneratorTab:
         self.generated_password = ft.TextField(
             label="Generated Password",
             read_only=True,
+            password=False,  # Initialize as visible
             expand=True,
             suffix=ft.Row([
+                ft.IconButton(
+                    icon=ft.icons.VISIBILITY_OFF,  # Start with visibility off icon since password is visible
+                    tooltip="Show/Hide Password",
+                    on_click=self.toggle_password_visibility
+                ),
                 ft.IconButton(
                     icon=ft.icons.REFRESH,
                     tooltip="Generate new password",
@@ -564,3 +570,14 @@ class GeneratorTab:
         
         # Navigate to the passwords tab
         self.main_window.navigate_to_tab(1)  # Index 1 is the passwords tab
+    
+    def toggle_password_visibility(self, e):
+        """
+        Toggle the visibility of the generated password.
+        
+        Args:
+            e: Click event
+        """
+        self.generated_password.password = not self.generated_password.password
+        e.control.icon = ft.icons.VISIBILITY if self.generated_password.password else ft.icons.VISIBILITY_OFF
+        self.main_window.page.update()

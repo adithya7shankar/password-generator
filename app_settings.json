@@ -1,8 +1,8 @@
 {
-  "theme": "Light",
+  "theme": "Dark",
   "auto_save": true,
   "clipboard_timeout": 30,
-  "storage_location": "./storage",
+  "storage_location": "/Volumes/Macintosh HD/Users/adithyashankar/Downloads",
   "create_backups": true,
   "max_backups": 3
 }
