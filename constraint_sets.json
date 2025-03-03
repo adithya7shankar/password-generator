@@ -1,0 +1,56 @@
+[
+  {
+    "id": "413f56f2-3537-4258-ae64-08ebc7a6b940",
+    "name": "Standard",
+    "min_length": 8,
+    "max_length": 16,
+    "require_uppercase": true,
+    "require_lowercase": true,
+    "require_digits": true,
+    "require_special": true,
+    "included_chars": [],
+    "excluded_chars": []
+  },
+  {
+    "id": "20db7d24-2c32-4043-9728-23ffcccc9717",
+    "name": "Strong",
+    "min_length": 12,
+    "max_length": 24,
+    "require_uppercase": true,
+    "require_lowercase": true,
+    "require_digits": true,
+    "require_special": true,
+    "included_chars": [
+      "!",
+      "@",
+      "#",
+      "$"
+    ],
+    "excluded_chars": []
+  },
+  {
+    "id": "f17c951f-609b-47fb-bbd3-b7d75880a2a9",
+    "name": "Simple",
+    "min_length": 6,
+    "max_length": 12,
+    "require_uppercase": true,
+    "require_lowercase": true,
+    "require_digits": true,
+    "require_special": false,
+    "included_chars": [],
+    "excluded_chars": [
+      "!",
+      "@",
+      "#",
+      "$",
+      "%",
+      "^",
+      "&",
+      "*",
+      "(",
+      ")",
+      "+",
+      "="
+    ]
+  }
+]

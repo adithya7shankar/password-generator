@@ -1,5 +1,5 @@
 # Use an official Python runtime as a parent image
-FROM python:3.12
+FROM python:3.12-slim
 
 # Set the working directory in the container
 WORKDIR /app
@@ -10,11 +10,11 @@ COPY . /app
 # Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose port 5000 for the Flet app (if using web version)
+# Expose port 5000 for the Flet app
 EXPOSE 5000
 
-# Define environment variable (if needed for Flet configuration)
+# Define environment variable for Flet configuration
 ENV FLET_SERVER_PORT=5000
 
-# Run the Flet app
-CMD ["python", "mainfn.py"]
+# Run the application
+CMD ["python", "main.py"]
