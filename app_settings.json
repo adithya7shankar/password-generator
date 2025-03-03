@@ -1,0 +1,8 @@
+{
+  "theme": "Light",
+  "auto_save": true,
+  "clipboard_timeout": 30,
+  "storage_location": "./storage",
+  "create_backups": true,
+  "max_backups": 3
+}

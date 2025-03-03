@@ -115,7 +115,7 @@ class Password:
 
 class PasswordStorage:
     """
-    Class for managing password storage with encryption.
+    Class for storing and retrieving password entries.
     """
     
     def __init__(self, 
@@ -125,18 +125,43 @@ class PasswordStorage:
         Initialize the password storage.
         
         Args:
-            storage_file: Path to the file where passwords are stored
-            key_file: Path to the file where the encryption key is stored
+            storage_file: Name of the file to store passwords
+            key_file: Name of the file to store the encryption key
         """
-        self.storage_file = storage_file
-        self.key_file = key_file
-        self.passwords = []
+        # Get storage location from app settings
+        self.app_settings = self._load_app_settings()
+        storage_location = self.app_settings.get('storage_location', './storage')
         
-        # Initialize or load encryption key
+        # Ensure storage directory exists
+        if not os.path.exists(storage_location):
+            os.makedirs(storage_location, exist_ok=True)
+        
+        # Set file paths
+        self.storage_file = os.path.join(storage_location, storage_file)
+        self.key_file = os.path.join(storage_location, key_file)
+        
+        # Initialize encryption
         self.cipher = self._initialize_encryption()
         
-        # Load existing passwords
+        # Load passwords
+        self.passwords: List[Password] = []
         self._load_passwords()
+    
+    def _load_app_settings(self) -> Dict[str, Any]:
+        """
+        Load application settings from json file.
+        
+        Returns:
+            Dictionary of application settings
+        """
+        app_settings_path = 'app_settings.json'
+        if os.path.exists(app_settings_path):
+            try:
+                with open(app_settings_path, 'r') as f:
+                    return json.load(f)
+            except Exception as e:
+                print(f"Error loading app settings: {e}")
+        return {'storage_location': './storage'}
     
     def _initialize_encryption(self) -> Fernet:
         """

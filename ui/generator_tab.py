@@ -22,29 +22,91 @@ class GeneratorTab:
         self.password_generator = PasswordGenerator()
         self.constraint_manager = ConstraintManager()
         self.password_storage = PasswordStorage()
+        self.password_history = []  # Store recently generated passwords
         
         # UI components
         self.keywords_input = ft.TextField(
             label="Keywords (comma-separated)",
             hint_text="Enter keywords to include in the password",
-            expand=True
+            expand=True,
+            tooltip="Add words that will be incorporated into your password"
         )
         
         self.constraint_dropdown = ft.Dropdown(
             label="Constraint Set",
             hint_text="Select a constraint set",
-            expand=True
+            expand=True,
+            tooltip="Choose predefined password requirements"
+        )
+        
+        # Password length slider
+        self.length_slider = ft.Slider(
+            min=6,
+            max=30,
+            divisions=24,
+            label="{value}",
+            value=12,
+            expand=True,
+            on_change=self.update_length_text
+        )
+        
+        self.length_text = ft.Text(
+            "Password Length: 12",
+            size=14
         )
         
         self.generated_password = ft.TextField(
             label="Generated Password",
             read_only=True,
             expand=True,
-            suffix=ft.IconButton(
-                icon=ft.icons.COPY,
-                tooltip="Copy to clipboard",
-                on_click=self.copy_password
+            suffix=ft.Row([
+                ft.IconButton(
+                    icon=ft.icons.REFRESH,
+                    tooltip="Generate new password",
+                    on_click=self.generate_password
+                ),
+                ft.IconButton(
+                    icon=ft.icons.COPY,
+                    tooltip="Copy to clipboard",
+                    on_click=self.copy_password
+                )
+            ], spacing=0)
+        )
+        
+        # Visual password strength meter
+        self.strength_indicators = [
+            ft.Container(
+                bgcolor=ft.colors.RED,
+                border_radius=5,
+                height=10,
+                width=25
+            ),
+            ft.Container(
+                bgcolor=ft.colors.ORANGE,
+                border_radius=5,
+                height=10,
+                width=25,
+                visible=False
+            ),
+            ft.Container(
+                bgcolor=ft.colors.YELLOW,
+                border_radius=5,
+                height=10,
+                width=25,
+                visible=False
+            ),
+            ft.Container(
+                bgcolor=ft.colors.GREEN,
+                border_radius=5,
+                height=10,
+                width=25,
+                visible=False
             )
+        ]
+        
+        self.password_strength_meter = ft.Row(
+            self.strength_indicators,
+            spacing=5
         )
         
         self.password_strength_bar = ft.ProgressBar(
@@ -65,17 +127,29 @@ class GeneratorTab:
             color=ft.colors.GREY_700
         )
         
+        # Password history section
+        self.history_list = ft.ListView(
+            height=150,
+            spacing=10,  # Increased spacing between history items
+            padding=10,
+            auto_scroll=True
+        )
+        
         # Save password fields
         self.website_input = ft.TextField(
             label="Website/Service",
             hint_text="Enter website or service name",
-            expand=True
+            expand=True,
+            tooltip="Website or service this password is for",
+            height=65  # Fixed height to prevent overlap
         )
         
         self.username_input = ft.TextField(
             label="Username/Email",
             hint_text="Enter username or email",
-            expand=True
+            expand=True,
+            tooltip="Username or email associated with this password",
+            height=65  # Fixed height to prevent overlap
         )
         
         self.category_dropdown = ft.Dropdown(
@@ -90,7 +164,9 @@ class GeneratorTab:
                 ft.dropdown.Option("Other")
             ],
             value="General",
-            expand=True
+            tooltip="Category for organizing your passwords",
+            width=400,  # Set a fixed width to prevent layout issues
+            height=65  # Fixed height to prevent overlap
         )
         
         self.notes_input = ft.TextField(
@@ -99,7 +175,22 @@ class GeneratorTab:
             multiline=True,
             min_lines=2,
             max_lines=4,
-            expand=True
+            expand=True,
+            tooltip="Additional information about this password"
+        )
+        
+        # Create history container
+        self.history_container = ft.Container(
+            content=ft.Column([
+                ft.Text("Recently Generated Passwords", size=16, weight=ft.FontWeight.BOLD),
+                ft.Container(height=10),  # Spacing
+                self.history_list
+            ], spacing=10),
+            visible=False,  # Initially hidden until passwords are generated
+            padding=20,  # Increased padding
+            border=ft.border.all(1, ft.colors.OUTLINE),
+            border_radius=10,
+            margin=ft.margin.only(bottom=30)
         )
         
         # Load constraint sets
@@ -114,14 +205,49 @@ class GeneratorTab:
         """
         return ft.Container(
             content=ft.Column([
-                ft.Text("Generate Password", size=24, weight=ft.FontWeight.BOLD),
-                ft.Divider(),
+                # Header
+                ft.Container(
+                    content=ft.Text("Generate Password", size=24, weight=ft.FontWeight.BOLD),
+                    margin=ft.margin.only(bottom=15)
+                ),
+                ft.Divider(height=2),
+                ft.Container(height=20),  # Added top spacing
                 
                 # Keywords and constraints section
-                ft.Row([
-                    self.keywords_input,
-                    self.constraint_dropdown
-                ]),
+                ft.Container(
+                    content=ft.Column([
+                        ft.Text("Password Options", size=16, weight=ft.FontWeight.BOLD),
+                        ft.Container(height=10),  # Spacing
+                        ft.Container(  # Wrapped in container for better spacing
+                            content=ft.Row([
+                                self.keywords_input,
+                            ]),
+                            margin=ft.margin.only(bottom=15)
+                        ),
+                        ft.Container(height=15),  # Spacing
+                        ft.Container(  # Wrapped in container for better spacing
+                            content=ft.Row([
+                                self.constraint_dropdown,
+                            ]),
+                            margin=ft.margin.only(bottom=15)
+                        ),
+                    ]),
+                    margin=ft.margin.only(top=20, bottom=15)
+                ),
+                
+                # Password length section
+                ft.Container(
+                    content=ft.Column([
+                        self.length_text,
+                        ft.Container(height=5),  # Spacing
+                        ft.Row([
+                            ft.Text("6", size=12),
+                            self.length_slider,
+                            ft.Text("30", size=12)
+                        ])
+                    ]),
+                    margin=ft.margin.only(top=10, bottom=20)
+                ),
                 
                 # Generate button
                 ft.Container(
@@ -134,40 +260,92 @@ class GeneratorTab:
                         )
                     ),
                     alignment=ft.alignment.center,
-                    margin=ft.margin.only(top=10, bottom=20)
+                    margin=ft.margin.only(top=10, bottom=25)
                 ),
                 
                 # Generated password section
                 ft.Container(
                     content=ft.Column([
-                        self.generated_password,
-                        ft.Row([
-                            self.strength_label,
-                            ft.Container(width=10),
-                            self.password_strength_bar
-                        ]),
+                        ft.Text("Generated Password", size=16, weight=ft.FontWeight.BOLD),
+                        ft.Container(height=15),
+                        ft.Container(  # Wrapped password field
+                            content=self.generated_password,
+                            height=65,  # Fixed height
+                            margin=ft.margin.only(bottom=15)
+                        ),
+                        ft.Container(height=20),
+                        ft.Container(  # Wrapped strength row
+                            content=ft.Row([
+                                ft.Column([
+                                    ft.Text("Strength:", size=14),
+                                    self.strength_label,
+                                ], spacing=5),
+                                ft.Container(width=30),  # Increased spacing
+                                ft.Column([
+                                    ft.Text("Strength Meter:", size=14),
+                                    ft.Container(
+                                        content=self.password_strength_meter,
+                                        margin=ft.margin.only(left=10)
+                                    )
+                                ], spacing=5),
+                            ]),
+                            margin=ft.margin.only(bottom=15)
+                        ),
+                        ft.Container(height=15),  # Spacing
+                        self.password_strength_bar,
+                        ft.Container(height=15),  # Spacing
+                        ft.Text("Feedback:", size=14),
                         self.feedback_text
-                    ]),
-                    padding=10,
+                    ], spacing=5),  # Spacing between all column elements
+                    padding=25,  # Increased padding
                     border=ft.border.all(1, ft.colors.OUTLINE),
                     border_radius=10,
-                    margin=ft.margin.only(bottom=20)
+                    margin=ft.margin.only(bottom=30)
+                ),
+                
+                # Password history section (using the stored reference)
+                ft.Container(  # Wrapped history section
+                    content=self.history_container,
+                    margin=ft.margin.only(top=20, bottom=30)
                 ),
                 
                 # Save password section
-                ft.Text("Save Password", size=18, weight=ft.FontWeight.BOLD),
-                ft.Divider(),
+                ft.Container(
+                    content=ft.Text("Save Password", size=18, weight=ft.FontWeight.BOLD),
+                    margin=ft.margin.only(top=10, bottom=5)
+                ),
+                ft.Divider(height=2),
                 
-                ft.Row([
-                    self.website_input,
-                    self.username_input
-                ]),
-                
-                ft.Row([
-                    self.category_dropdown
-                ]),
-                
-                self.notes_input,
+                # Save password form - adjusted spacing
+                ft.Container(
+                    content=ft.Column([
+                        ft.Text("Save Password Details", size=16, weight=ft.FontWeight.BOLD),
+                        ft.Container(height=15),
+                        ft.Container(
+                            content=self.website_input,
+                            margin=ft.margin.only(bottom=25)
+                        ),
+                        
+                        ft.Container(
+                            content=self.username_input,
+                            margin=ft.margin.only(bottom=25)
+                        ),
+                        
+                        ft.Container(
+                            content=ft.Row([
+                                self.category_dropdown
+                            ]),
+                            margin=ft.margin.only(bottom=25)
+                        ),
+                        
+                        ft.Container(
+                            content=self.notes_input,
+                            margin=ft.margin.only(bottom=25)
+                        ),
+                    ]),
+                    margin=ft.margin.only(top=20, bottom=20),
+                    padding=10
+                ),
                 
                 ft.Container(
                     content=ft.ElevatedButton(
@@ -179,12 +357,24 @@ class GeneratorTab:
                         )
                     ),
                     alignment=ft.alignment.center,
-                    margin=ft.margin.only(top=10)
+                    margin=ft.margin.only(top=10, bottom=30)
                 )
-            ], scroll=ft.ScrollMode.AUTO),
-            padding=20,
+            ], 
+            spacing=0,  # We're using explicit spacing with Container height
+            scroll=ft.ScrollMode.AUTO),
+            padding=30,  # Increased overall padding
             expand=True
         )
+    
+    def update_length_text(self, e):
+        """
+        Update the length text when the slider changes.
+        
+        Args:
+            e: Change event
+        """
+        self.length_text.value = f"Password Length: {int(e.control.value)}"
+        self.main_window.page.update()
     
     def _load_constraint_sets(self):
         """
@@ -221,8 +411,16 @@ class GeneratorTab:
             self.main_window.show_error("Please select a valid constraint set")
             return
         
+        # Get custom length if specified
+        custom_length = int(self.length_slider.value)
+        
         # Generate password
         constraints = constraint_set.to_dict()
+        
+        # Override length constraints with slider value
+        constraints['min_length'] = custom_length
+        constraints['max_length'] = custom_length
+        
         password = self.password_generator.generate_password(keywords, constraints)
         
         # Update UI
@@ -233,7 +431,7 @@ class GeneratorTab:
         
         # Update strength indicators
         self.password_strength_bar.value = strength['score'] / 100
-        self.strength_label.value = f"Password Strength: {strength['score']}%"
+        self.strength_label.value = f"{strength['score']}%"
         
         # Set color based on strength
         if strength['score'] < 50:
@@ -243,14 +441,80 @@ class GeneratorTab:
         else:
             self.password_strength_bar.color = ft.colors.GREEN
         
+        # Update visual strength meter
+        for i, indicator in enumerate(self.strength_indicators):
+            if i == 0:  # First indicator always visible
+                indicator.visible = True
+            else:
+                # Show indicators based on strength score
+                indicator.visible = strength['score'] >= (i * 25)
+        
         # Update feedback
         if strength['feedback']:
             self.feedback_text.value = ", ".join(strength['feedback'])
         else:
-            self.feedback_text.value = ""
+            self.feedback_text.value = "No issues found"
+        
+        # Add to history
+        self._add_to_history(password, strength['score'])
         
         # Update the UI
         self.main_window.page.update()
+    
+    def _add_to_history(self, password, strength_score):
+        """
+        Add a password to the history list.
+        
+        Args:
+            password: The generated password
+            strength_score: The password strength score
+        """
+        # Add to history list (max 5 items)
+        self.password_history.insert(0, password)
+        if len(self.password_history) > 5:
+            self.password_history.pop()
+        
+        # Clear the history list
+        self.history_list.controls.clear()
+        
+        # Add history items to the list
+        for pwd in self.password_history:
+            # Create a history item
+            history_item = ft.Container(
+                content=ft.Row([
+                    ft.Text(
+                        pwd,
+                        expand=True,
+                        overflow=ft.TextOverflow.ELLIPSIS,
+                        size=14
+                    ),
+                    ft.IconButton(
+                        icon=ft.icons.COPY,
+                        tooltip="Copy to clipboard",
+                        on_click=lambda e, p=pwd: self._copy_history_password(p)
+                    )
+                ]),
+                padding=10,
+                border_radius=5,
+                bgcolor=ft.colors.SURFACE_VARIANT,  # Fixed: removed with_opacity
+                margin=ft.margin.only(bottom=5)  # Add margin between items
+            )
+            
+            self.history_list.controls.append(history_item)
+        
+        # Make history section visible if it has items
+        if self.password_history:
+            self.history_container.visible = True
+    
+    def _copy_history_password(self, password):
+        """
+        Copy a password from history to clipboard.
+        
+        Args:
+            password: The password to copy
+        """
+        self.main_window.page.set_clipboard(password)
+        self.main_window.show_snackbar("Password copied to clipboard")
     
     def copy_password(self, e):
         """
