@@ -578,6 +578,16 @@ class GeneratorTab:
         Args:
             e: Click event
         """
+        # Toggle the password visibility state
         self.generated_password.password = not self.generated_password.password
-        e.control.icon = ft.icons.VISIBILITY if self.generated_password.password else ft.icons.VISIBILITY_OFF
+        
+        # Update the icon based on the current state
+        # When password=True (hidden), show VISIBILITY icon (eye open)
+        # When password=False (visible), show VISIBILITY_OFF icon (eye with slash)
+        if self.generated_password.password:
+            e.control.icon = ft.icons.VISIBILITY
+        else:
+            e.control.icon = ft.icons.VISIBILITY_OFF
+            
+        # Update the UI
         self.main_window.page.update()

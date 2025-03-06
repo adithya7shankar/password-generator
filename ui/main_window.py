@@ -32,6 +32,25 @@ class MainWindow:
         self.constraints_tab = ConstraintsTab(self)
         self.settings_tab = SettingsTab(self)
         
+        # Create app bar
+        self.app_bar = ft.AppBar(
+            title=ft.Text("Password Generator"),
+            center_title=False,
+            bgcolor=ft.colors.SURFACE_VARIANT,
+            actions=[
+                ft.IconButton(
+                    icon=ft.icons.DARK_MODE if self.page.theme_mode == ft.ThemeMode.LIGHT else ft.icons.LIGHT_MODE,
+                    tooltip="Toggle theme",
+                    on_click=self.toggle_theme
+                ),
+                ft.IconButton(
+                    icon=ft.icons.INFO,
+                    tooltip="About",
+                    on_click=self.show_about
+                )
+            ]
+        )
+        
         # Create tab navigation
         self.tabs = ft.Tabs(
             selected_index=0,
@@ -59,25 +78,6 @@ class MainWindow:
                 )
             ],
             expand=1
-        )
-        
-        # Create app bar
-        self.app_bar = ft.AppBar(
-            title=ft.Text("Password Generator"),
-            center_title=True,
-            bgcolor=ft.colors.SURFACE_VARIANT,
-            actions=[
-                ft.IconButton(
-                    icon=ft.icons.LIGHT_MODE,
-                    tooltip="Toggle theme",
-                    on_click=self.toggle_theme
-                ),
-                ft.IconButton(
-                    icon=ft.icons.INFO,
-                    tooltip="About",
-                    on_click=self.show_about
-                )
-            ]
         )
         
         # Set up the page layout
@@ -108,6 +108,7 @@ class MainWindow:
             self.page.theme_mode = ft.ThemeMode.DARK
             e.control.icon = ft.icons.LIGHT_MODE
         
+        # Update the page to apply theme changes
         self.page.update()
     
     def show_about(self, e):
