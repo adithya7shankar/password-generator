@@ -20,7 +20,7 @@ class SettingsTab:
         self.settings_file = "app_settings.json"
         self.settings = self._load_settings()
         
-        # UI components
+        # UI components with minimalist styling
         self.theme_dropdown = ft.Dropdown(
             label="Theme",
             hint_text="Select application theme",
@@ -30,13 +30,19 @@ class SettingsTab:
                 ft.dropdown.Option("Dark", "dark")
             ],
             value=self.settings.get("theme", "system"),
-            on_change=self.save_theme_setting
+            on_change=self.save_theme_setting,
+            expand=True,
+            border_radius=8,
+            height=65,
+            width=None  # Allow the width to be determined by the parent container
         )
         
         self.auto_save_switch = ft.Switch(
             label="Auto-save generated passwords",
             value=self.settings.get("auto_save", False),
-            on_change=self.save_auto_save_setting
+            on_change=self.save_auto_save_setting,
+            active_color=ft.colors.BLUE_GREY,
+            label_position=ft.LabelPosition.RIGHT
         )
         
         self.clipboard_timeout = ft.Slider(
@@ -45,20 +51,29 @@ class SettingsTab:
             divisions=11,
             label="{value} seconds",
             value=self.settings.get("clipboard_timeout", 30),
-            on_change=self.save_clipboard_timeout
+            on_change=self.save_clipboard_timeout,
+            active_color=ft.colors.BLUE_GREY,
+            height=50,
+            expand=True,
+            width=None  # Allow the width to be determined by the parent container
         )
         
         self.storage_location = ft.TextField(
             label="Storage Location",
             value=self.settings.get("storage_location", ""),
             hint_text="Path to store password files",
-            on_change=self.save_storage_location
+            on_change=self.save_storage_location,
+            expand=True,
+            border_radius=8,
+            height=65,
+            width=None  # Allow the width to be determined by the parent container
         )
         
-        self.browse_button = ft.ElevatedButton(
+        self.browse_button = ft.FilledButton(
             "Browse",
             icon=ft.icons.FOLDER_OPEN,
-            on_click=self.browse_storage_location
+            on_click=self.browse_storage_location,
+            height=50
         )
         
         # Encryption settings
@@ -71,7 +86,11 @@ class SettingsTab:
                 ft.dropdown.Option("ChaCha20-Poly1305", "chacha20"),
             ],
             value=self.settings.get("encryption_algorithm", "fernet"),
-            on_change=self.save_encryption_algorithm
+            on_change=self.save_encryption_algorithm,
+            expand=True,
+            border_radius=8,
+            height=65,
+            width=None  # Allow the width to be determined by the parent container
         )
         
         self.encryption_key_rotation = ft.Dropdown(
@@ -84,19 +103,26 @@ class SettingsTab:
                 ft.dropdown.Option("Every year", "yearly"),
             ],
             value=self.settings.get("key_rotation", "manual"),
-            on_change=self.save_key_rotation
+            on_change=self.save_key_rotation,
+            expand=True,
+            border_radius=8,
+            height=65,
+            width=None  # Allow the width to be determined by the parent container
         )
         
-        self.rotate_key_button = ft.ElevatedButton(
-            "Rotate Encryption Key Now",
+        self.rotate_key_button = ft.FilledButton(
+            "Rotate Encryption Key",
             icon=ft.icons.REFRESH,
-            on_click=self.rotate_encryption_key
+            on_click=self.rotate_encryption_key,
+            height=50
         )
         
         self.backup_switch = ft.Switch(
             label="Create backups before saving",
             value=self.settings.get("create_backups", True),
-            on_change=self.save_backup_setting
+            on_change=self.save_backup_setting,
+            active_color=ft.colors.BLUE_GREY,
+            label_position=ft.LabelPosition.RIGHT
         )
         
         self.max_backups = ft.Slider(
@@ -105,104 +131,140 @@ class SettingsTab:
             divisions=9,
             label="{value} backups",
             value=self.settings.get("max_backups", 3),
-            on_change=self.save_max_backups
+            on_change=self.save_max_backups,
+            active_color=ft.colors.BLUE_GREY,
+            height=50
         )
         
-        self.reset_button = ft.ElevatedButton(
+        self.reset_button = ft.OutlinedButton(
             "Reset to Defaults",
             icon=ft.icons.RESTORE,
             on_click=self.reset_settings,
             style=ft.ButtonStyle(
                 color=ft.colors.ERROR
-            )
+            ),
+            height=50
         )
     
     def build(self) -> ft.Container:
         """
-        Build the settings tab UI.
+        Build the settings tab UI with responsive minimalist design.
         
         Returns:
             Container with the tab content
         """
         return ft.Container(
             content=ft.Column([
-                ft.Text("Settings", size=24, weight=ft.FontWeight.BOLD),
-                ft.Divider(),
-                
-                # Appearance section
-                ft.Text("Appearance", size=18, weight=ft.FontWeight.BOLD),
                 ft.Container(
-                    content=ft.Column([
-                        self.theme_dropdown
-                    ]),
-                    padding=10,
-                    border=ft.border.all(1, ft.colors.OUTLINE),
-                    border_radius=10,
-                    margin=ft.margin.only(bottom=20)
+                    content=ft.Text("Settings", size=28, weight=ft.FontWeight.W_300),
+                    margin=ft.margin.only(bottom=20, top=10)
                 ),
                 
-                # Password Generation section
-                ft.Text("Password Generation", size=18, weight=ft.FontWeight.BOLD),
-                ft.Container(
-                    content=ft.Column([
-                        self.auto_save_switch,
-                        ft.Text("Clear clipboard after:"),
-                        self.clipboard_timeout
-                    ]),
-                    padding=10,
-                    border=ft.border.all(1, ft.colors.OUTLINE),
-                    border_radius=10,
-                    margin=ft.margin.only(bottom=20)
-                ),
-                
-                # Storage section
-                ft.Text("Storage", size=18, weight=ft.FontWeight.BOLD),
-                ft.Container(
-                    content=ft.Column([
-                        ft.Row([
-                            self.storage_location,
-                            self.browse_button
-                        ]),
-                        self.backup_switch,
-                        ft.Text("Maximum number of backups:"),
-                        self.max_backups
-                    ]),
-                    padding=10,
-                    border=ft.border.all(1, ft.colors.OUTLINE),
-                    border_radius=10,
-                    margin=ft.margin.only(bottom=20)
-                ),
-                
-                # Security section
-                ft.Text("Security & Encryption", size=18, weight=ft.FontWeight.BOLD),
-                ft.Container(
-                    content=ft.Column([
-                        self.encryption_algorithm,
-                        self.encryption_key_rotation,
-                        ft.Container(
-                            content=self.rotate_key_button,
-                            alignment=ft.alignment.center,
-                            margin=ft.margin.only(top=10)
+                # Responsive layout with two columns on larger screens
+                ft.ResponsiveRow([
+                    # Left column for theme and password generation
+                    ft.Column([
+                        # Appearance section
+                        ft.Card(
+                            content=ft.Container(
+                                content=ft.Column([
+                                    ft.Text("Appearance", size=16, weight=ft.FontWeight.W_500),
+                                    ft.Divider(height=1, color=ft.colors.OUTLINE_VARIANT),
+                                    ft.Container(height=20),
+                                    self.theme_dropdown
+                                ], spacing=10),
+                                padding=25
+                            ),
+                            elevation=0,
+                            color=ft.colors.SURFACE,
+                            margin=ft.margin.only(bottom=20)
                         ),
-                        ft.Text(
-                            "Note: Changing the encryption algorithm will re-encrypt all passwords.",
-                            size=12,
-                            color=ft.colors.GREY_600,
-                            italic=True
-                        )
-                    ]),
-                    padding=10,
-                    border=ft.border.all(1, ft.colors.OUTLINE),
-                    border_radius=10,
-                    margin=ft.margin.only(bottom=20)
-                ),
+                        
+                        # Password Generation section
+                        ft.Card(
+                            content=ft.Container(
+                                content=ft.Column([
+                                    ft.Text("Password Generation", size=16, weight=ft.FontWeight.W_500),
+                                    ft.Divider(height=1, color=ft.colors.OUTLINE_VARIANT),
+                                    ft.Container(height=20),
+                                    self.auto_save_switch,
+                                    ft.Container(height=20),
+                                    ft.Text("Clear clipboard after:", size=14),
+                                    ft.Container(height=10),
+                                    self.clipboard_timeout
+                                ], spacing=10),
+                                padding=25
+                            ),
+                            elevation=0,
+                            color=ft.colors.SURFACE
+                        ),
+                    ], col={"sm": 12, "md": 6, "lg": 6, "xl": 5}),
+                    
+                    # Right column for storage and security
+                    ft.Column([
+                        # Storage section
+                        ft.Card(
+                            content=ft.Container(
+                                content=ft.Column([
+                                    ft.Text("Storage", size=16, weight=ft.FontWeight.W_500),
+                                    ft.Divider(height=1, color=ft.colors.OUTLINE_VARIANT),
+                                    ft.Container(height=20),
+                                    ft.Row([
+                                        self.storage_location,
+                                        ft.Container(width=15),
+                                        self.browse_button
+                                    ]),
+                                    ft.Container(height=20),
+                                    self.backup_switch,
+                                    ft.Container(height=20),
+                                    ft.Text("Maximum number of backups:", size=14),
+                                    ft.Container(height=10),
+                                    self.max_backups
+                                ], spacing=10),
+                                padding=25
+                            ),
+                            elevation=0,
+                            color=ft.colors.SURFACE,
+                            margin=ft.margin.only(bottom=20)
+                        ),
+                        
+                        # Security section
+                        ft.Card(
+                            content=ft.Container(
+                                content=ft.Column([
+                                    ft.Text("Security & Encryption", size=16, weight=ft.FontWeight.W_500),
+                                    ft.Divider(height=1, color=ft.colors.OUTLINE_VARIANT),
+                                    ft.Container(height=20),
+                                    self.encryption_algorithm,
+                                    ft.Container(height=20),
+                                    self.encryption_key_rotation,
+                                    ft.Container(
+                                        content=self.rotate_key_button,
+                                        alignment=ft.alignment.center,
+                                        margin=ft.margin.only(top=20, bottom=15)
+                                    ),
+                                    ft.Text(
+                                        "Note: Changing the encryption algorithm will re-encrypt all passwords.",
+                                        size=12,
+                                        color=ft.colors.GREY_600,
+                                        italic=True
+                                    )
+                                ], spacing=10),
+                                padding=25
+                            ),
+                            elevation=0,
+                            color=ft.colors.SURFACE
+                        ),
+                    ], col={"sm": 12, "md": 6, "lg": 6, "xl": 7})
+                ], spacing=20, expand=True),
                 
-                # Reset button
+                # Reset button (always at bottom)
                 ft.Container(
                     content=self.reset_button,
-                    alignment=ft.alignment.center_right
+                    alignment=ft.alignment.center_right,
+                    margin=ft.margin.only(top=20, right=10, bottom=20)
                 )
-            ], scroll=ft.ScrollMode.AUTO),
+            ], spacing=10, scroll=ft.ScrollMode.AUTO),
             padding=20,
             expand=True
         )
@@ -264,16 +326,20 @@ class SettingsTab:
         # Update the main window theme
         if theme == "light":
             self.main_window.page.theme_mode = ft.ThemeMode.LIGHT
-            self.main_window.app_bar.actions[0].icon = ft.icons.DARK_MODE
         elif theme == "dark":
             self.main_window.page.theme_mode = ft.ThemeMode.DARK
-            self.main_window.app_bar.actions[0].icon = ft.icons.LIGHT_MODE
         else:  # system
             self.main_window.page.theme_mode = ft.ThemeMode.SYSTEM
-            # Set icon based on system theme
-            is_dark = self.main_window.page.platform_brightness == ft.ThemeMode.DARK
-            self.main_window.app_bar.actions[0].icon = ft.icons.LIGHT_MODE if is_dark else ft.icons.DARK_MODE
+            
+        # Update the theme toggle icon in the app bar
+        for action in self.main_window.app_bar.actions:
+            if isinstance(action, ft.IconButton) and action.tooltip == "Toggle theme":
+                if self.main_window.page.theme_mode == ft.ThemeMode.DARK:
+                    action.icon = ft.icons.LIGHT_MODE
+                else:
+                    action.icon = ft.icons.DARK_MODE
         
+        # Apply the theme change
         self.main_window.page.update()
     
     def save_auto_save_setting(self, e):

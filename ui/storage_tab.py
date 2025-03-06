@@ -36,6 +36,13 @@ class StorageTab:
             value="All Categories"
         )
         
+        # Add refresh button
+        self.refresh_button = ft.IconButton(
+            icon=ft.icons.REFRESH,
+            tooltip="Refresh password list",
+            on_click=self.refresh_passwords
+        )
+        
         self.password_list = ft.ListView(
             expand=True,
             spacing=10,
@@ -178,7 +185,8 @@ class StorageTab:
                 # Search and filter section
                 ft.Row([
                     self.search_input,
-                    self.category_filter
+                    self.category_filter,
+                    self.refresh_button
                 ]),
                 
                 # Password list and details section
@@ -668,3 +676,19 @@ class StorageTab:
         
         self.main_window.page.dialog.open = True
         self.main_window.page.update()
+
+    def refresh_passwords(self, e):
+        """
+        Refresh the password list when the refresh button is clicked.
+        
+        Args:
+            e: Click event
+        """
+        # Reload categories
+        self._load_categories()
+        
+        # Reload passwords
+        self._load_passwords()
+        
+        # Show confirmation
+        self.main_window.show_snackbar("Password list refreshed")

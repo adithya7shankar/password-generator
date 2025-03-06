@@ -23,20 +23,27 @@ class GeneratorTab:
         self.constraint_manager = ConstraintManager()
         self.password_storage = PasswordStorage()
         self.password_history = []  # Store recently generated passwords
+        self.history_visible = False  # Track history visibility state
         
         # UI components
         self.keywords_input = ft.TextField(
             label="Keywords (comma-separated)",
             hint_text="Enter keywords to include in the password",
             expand=True,
-            tooltip="Add words that will be incorporated into your password"
+            tooltip="Add words that will be incorporated into your password",
+            border_radius=8,
+            height=65,
+            width=None  # Allow the width to be determined by the parent container
         )
         
         self.constraint_dropdown = ft.Dropdown(
             label="Constraint Set",
             hint_text="Select a constraint set",
             expand=True,
-            tooltip="Choose predefined password requirements"
+            tooltip="Choose predefined password requirements",
+            border_radius=8,
+            height=65,
+            width=None  # Allow the width to be determined by the parent container
         )
         
         # Password length slider
@@ -47,24 +54,32 @@ class GeneratorTab:
             label="{value}",
             value=12,
             expand=True,
-            on_change=self.update_length_text
+            on_change=self.update_length_text,
+            active_color=ft.colors.BLUE_GREY,
+            height=50,
+            width=None  # Allow the width to be determined by the parent container
         )
         
         self.length_text = ft.Text(
             "Password Length: 12",
-            size=14
+            size=14,
+            weight=ft.FontWeight.W_400
         )
         
+        # Main password field with actions
         self.generated_password = ft.TextField(
             label="Generated Password",
             read_only=True,
-            password=False,  # Initialize as visible
+            password=False,
             expand=True,
-            value="",  # Initialize with empty string
-            text_size=16,  # Larger text size for better visibility
+            value="",
+            text_size=16,
+            border_radius=8,
+            height=65,
+            width=None,  # Allow the width to be determined by the parent container
             suffix=ft.Row([
                 ft.IconButton(
-                    icon=ft.icons.VISIBILITY_OFF,  # Start with visibility off icon since password is visible
+                    icon=ft.icons.VISIBILITY_OFF,
                     tooltip="Show/Hide Password",
                     on_click=self.toggle_password_visibility
                 ),
@@ -81,52 +96,19 @@ class GeneratorTab:
             ], spacing=0)
         )
         
-        # Visual password strength meter
-        self.strength_indicators = [
-            ft.Container(
-                bgcolor=ft.colors.RED,
-                border_radius=5,
-                height=10,
-                width=25
-            ),
-            ft.Container(
-                bgcolor=ft.colors.ORANGE,
-                border_radius=5,
-                height=10,
-                width=25,
-                visible=False
-            ),
-            ft.Container(
-                bgcolor=ft.colors.YELLOW,
-                border_radius=5,
-                height=10,
-                width=25,
-                visible=False
-            ),
-            ft.Container(
-                bgcolor=ft.colors.GREEN,
-                border_radius=5,
-                height=10,
-                width=25,
-                visible=False
-            )
-        ]
-        
-        self.password_strength_meter = ft.Row(
-            self.strength_indicators,
-            spacing=5
-        )
-        
+        # Simplified strength meter - just using progress bar
         self.password_strength_bar = ft.ProgressBar(
-            width=400,
+            width=None,  # Will expand to fill container width
+            height=8,
             color=ft.colors.GREEN,
             bgcolor=ft.colors.GREY_300,
             value=0
         )
         
         self.strength_label = ft.Text(
-            "Password Strength: 0%",
-            size=14
+            "Strength: 0%",
+            size=14,
+            weight=ft.FontWeight.W_400
         )
         
         self.feedback_text = ft.Text(
@@ -138,18 +120,20 @@ class GeneratorTab:
         # Password history section
         self.history_list = ft.ListView(
             height=150,
-            spacing=10,  # Increased spacing between history items
+            spacing=10,
             padding=10,
             auto_scroll=True
         )
         
-        # Save password fields
+        # Save password fields with minimalist styling
         self.website_input = ft.TextField(
             label="Website/Service",
             hint_text="Enter website or service name",
             expand=True,
             tooltip="Website or service this password is for",
-            height=65  # Fixed height to prevent overlap
+            border_radius=8,
+            height=65,
+            width=None  # Allow the width to be determined by the parent container
         )
         
         self.username_input = ft.TextField(
@@ -157,7 +141,9 @@ class GeneratorTab:
             hint_text="Enter username or email",
             expand=True,
             tooltip="Username or email associated with this password",
-            height=65  # Fixed height to prevent overlap
+            border_radius=8,
+            height=65,
+            width=None  # Allow the width to be determined by the parent container
         )
         
         self.category_dropdown = ft.Dropdown(
@@ -173,8 +159,10 @@ class GeneratorTab:
             ],
             value="General",
             tooltip="Category for organizing your passwords",
-            width=400,  # Set a fixed width to prevent layout issues
-            height=65  # Fixed height to prevent overlap
+            expand=True,
+            border_radius=8,
+            height=65,
+            width=None  # Allow the width to be determined by the parent container
         )
         
         self.notes_input = ft.TextField(
@@ -184,21 +172,20 @@ class GeneratorTab:
             min_lines=2,
             max_lines=4,
             expand=True,
-            tooltip="Additional information about this password"
+            tooltip="Additional information about this password",
+            border_radius=8,
+            height=120,
+            width=None  # Allow the width to be determined by the parent container
         )
         
-        # Create history container
+        # Create history container - legacy reference kept for compatibility
         self.history_container = ft.Container(
             content=ft.Column([
                 ft.Text("Recently Generated Passwords", size=16, weight=ft.FontWeight.BOLD),
-                ft.Container(height=10),  # Spacing
+                ft.Container(height=10),
                 self.history_list
-            ], spacing=10),
-            visible=False,  # Initially hidden until passwords are generated
-            padding=20,  # Increased padding
-            border=ft.border.all(1, ft.colors.OUTLINE),
-            border_radius=10,
-            margin=ft.margin.only(bottom=30)
+            ]),
+            visible=False
         )
         
         # Load constraint sets
@@ -206,207 +193,198 @@ class GeneratorTab:
     
     def build(self) -> ft.Container:
         """
-        Build the generator tab UI.
+        Build the generator tab UI with a minimalist, responsive design.
         
         Returns:
             Container with the tab content
         """
         return ft.Container(
             content=ft.Column([
-                # Header
+                # Minimalist header
                 ft.Container(
-                    content=ft.Text("Generate Password", size=24, weight=ft.FontWeight.BOLD),
-                    margin=ft.margin.only(bottom=15)
+                    content=ft.Text("Password Generator", size=28, weight=ft.FontWeight.W_300),
+                    margin=ft.margin.only(bottom=20, top=10)
                 ),
-                ft.Divider(height=2),
-                ft.Container(height=20),  # Added top spacing
-                
-                # Keywords and constraints section
+
+                # Main content area
                 ft.Container(
                     content=ft.Column([
-                        ft.Text("Password Options", size=16, weight=ft.FontWeight.BOLD),
-                        ft.Container(height=10),  # Spacing
-                        ft.Container(  # Wrapped in container for better spacing
-                            content=ft.Row([
-                                self.keywords_input,
-                            ]),
-                            margin=ft.margin.only(bottom=15)
-                        ),
-                        ft.Container(height=15),  # Spacing
-                        ft.Container(  # Wrapped in container for better spacing
-                            content=ft.Row([
-                                self.constraint_dropdown,
-                            ]),
-                            margin=ft.margin.only(bottom=15)
-                        ),
-                    ]),
-                    margin=ft.margin.only(top=20, bottom=15)
-                ),
-                
-                # Password length section
-                ft.Container(
-                    content=ft.Column([
-                        self.length_text,
-                        ft.Container(height=5),  # Spacing
-                        ft.Row([
-                            ft.Text("6", size=12),
-                            self.length_slider,
-                            ft.Text("30", size=12)
-                        ])
-                    ]),
-                    margin=ft.margin.only(top=10, bottom=20)
-                ),
-                
-                # Generate button
-                ft.Container(
-                    content=ft.ElevatedButton(
-                        "Generate Password",
-                        icon=ft.icons.REFRESH,
-                        on_click=self.generate_password,
-                        style=ft.ButtonStyle(
-                            shape=ft.RoundedRectangleBorder(radius=10)
-                        )
-                    ),
-                    alignment=ft.alignment.center,
-                    margin=ft.margin.only(top=10, bottom=25)
-                ),
-                
-                # Generated Password display
-                ft.Container(
-                    content=ft.Column([
-                        ft.Text("Generated Password", size=16, weight=ft.FontWeight.BOLD),
-                        ft.Container(height=10),
+                        # Top section with options and generated password
+                        ft.ResponsiveRow([
+                            # Left column - Password Options
+                            ft.Container(
+                                content=ft.Card(
+                                    content=ft.Container(
+                                        content=ft.Column([
+                                            ft.Text("Options", size=16, weight=ft.FontWeight.W_500),
+                                            ft.Divider(height=1, color=ft.colors.OUTLINE_VARIANT),
+                                            ft.Container(height=20),
+                                            
+                                            # Keywords input
+                                            self.keywords_input,
+                                            ft.Container(height=20),
+                                            
+                                            # Constraint set selection
+                                            self.constraint_dropdown,
+                                            ft.Container(height=20),
+                                            
+                                            # Password length
+                                            ft.Column([
+                                                self.length_text,
+                                                ft.Container(height=10),
+                                                ft.Row([
+                                                    ft.Text("6", size=12, color=ft.colors.OUTLINE),
+                                                    self.length_slider,
+                                                    ft.Text("30", size=12, color=ft.colors.OUTLINE)
+                                                ], expand=True)
+                                            ]),
+                                            
+                                            # Generate button
+                                            ft.Container(
+                                                content=ft.FilledButton(
+                                                    "Generate",
+                                                    icon=ft.icons.REFRESH,
+                                                    on_click=self.generate_password,
+                                                ),
+                                                alignment=ft.alignment.center,
+                                                margin=ft.margin.only(top=25)
+                                            ),
+                                        ], spacing=10),
+                                        padding=25
+                                    ),
+                                    elevation=0,
+                                    color=ft.colors.SURFACE
+                                ),
+                                col={"sm": 12, "md": 6, "lg": 5, "xl": 4},
+                                margin=ft.margin.only(bottom=20)
+                            ),
+                            
+                            # Right column - Generated Password
+                            ft.Container(
+                                content=ft.Card(
+                                    content=ft.Container(
+                                        content=ft.Column([
+                                            ft.Text("Generated Password", size=16, weight=ft.FontWeight.W_500),
+                                            ft.Divider(height=1, color=ft.colors.OUTLINE_VARIANT),
+                                            ft.Container(height=20),
+                                            
+                                            # Password display
+                                            self.generated_password,
+                                            ft.Container(height=15),
+                                            
+                                            # Strength indicators
+                                            self.password_strength_bar,
+                                            ft.Container(
+                                                content=ft.Row([
+                                                    self.strength_label,
+                                                    ft.Container(width=20),
+                                                    self.feedback_text
+                                                ]),
+                                                margin=ft.margin.only(top=10, bottom=15)
+                                            ),
+                                            
+                                            # Action buttons
+                                            ft.Row([
+                                                ft.IconButton(
+                                                    icon=ft.icons.VISIBILITY_OFF,
+                                                    tooltip="Show/Hide Password",
+                                                    on_click=self.toggle_password_visibility
+                                                ),
+                                                ft.IconButton(
+                                                    icon=ft.icons.REFRESH, 
+                                                    tooltip="Generate New",
+                                                    on_click=self.generate_password
+                                                ),
+                                                ft.IconButton(
+                                                    icon=ft.icons.COPY,
+                                                    tooltip="Copy to Clipboard",
+                                                    on_click=self.copy_password
+                                                ),
+                                            ], alignment=ft.MainAxisAlignment.END)
+                                        ], spacing=10),
+                                        padding=25
+                                    ),
+                                    elevation=0,
+                                    color=ft.colors.SURFACE
+                                ),
+                                col={"sm": 12, "md": 6, "lg": 7, "xl": 8},
+                                margin=ft.margin.only(bottom=20)
+                            ),
+                        ], expand=True),
+
+                        # History section (conditionally visible)
                         ft.Container(
-                            content=self.generated_password,
-                            height=65
-                        )
-                    ]),
-                    padding=25,
-                    border=ft.border.all(1, ft.colors.OUTLINE),
-                    border_radius=10,
-                    margin=ft.margin.only(bottom=30)
-                ),
-                
-                # Password strength and features section
-                ft.Container(
-                    content=ft.Column([
-                        ft.Text("Password Strength & Features", size=16, weight=ft.FontWeight.BOLD),
-                        ft.Container(height=15),
-                        
-                        # Password Strength Indicators
-                        ft.Container(  # Wrapped strength row
-                            content=ft.Row([
-                                ft.Column([
-                                    ft.Text("Strength:", size=14),
-                                    self.strength_label,
-                                ], spacing=5),
-                                ft.Container(width=30),  # Increased spacing
-                                ft.Column([
-                                    ft.Text("Strength Meter:", size=14),
+                            content=ft.Card(
+                                content=ft.Container(
+                                    content=ft.Column([
+                                        ft.Text("History", size=16, weight=ft.FontWeight.W_500),
+                                        ft.Divider(height=1, color=ft.colors.OUTLINE_VARIANT),
+                                        ft.Container(height=20),
+                                        self.history_list
+                                    ], spacing=10),
+                                    padding=25
+                                ),
+                                elevation=0,
+                                color=ft.colors.SURFACE
+                            ),
+                            visible=self.history_visible,
+                            margin=ft.margin.only(bottom=20)
+                        ),
+
+                        # Save Password Section
+                        ft.Card(
+                            content=ft.Container(
+                                content=ft.Column([
+                                    ft.Text("Save Password", size=16, weight=ft.FontWeight.W_500),
+                                    ft.Divider(height=1, color=ft.colors.OUTLINE_VARIANT),
+                                    ft.Container(height=20),
+                                    
+                                    # Form fields with responsive layout
+                                    ft.ResponsiveRow([
+                                        # Left column
+                                        ft.Container(
+                                            content=ft.Column([
+                                                self.website_input,
+                                                ft.Container(height=20),
+                                                self.username_input,
+                                            ]),
+                                            col={"sm": 12, "md": 6},
+                                            padding=ft.padding.only(right=10)
+                                        ),
+                                        
+                                        # Right column
+                                        ft.Container(
+                                            content=ft.Column([
+                                                self.category_dropdown,
+                                                ft.Container(height=20),
+                                                self.notes_input,
+                                            ]),
+                                            col={"sm": 12, "md": 6},
+                                            padding=ft.padding.only(left=10)
+                                        ),
+                                    ], expand=True),
+                                    
+                                    # Save button
                                     ft.Container(
-                                        content=self.password_strength_meter,
-                                        margin=ft.margin.only(left=10)
+                                        content=ft.FilledButton(
+                                            "Save",
+                                            icon=ft.icons.SAVE,
+                                            on_click=self.save_password
+                                        ),
+                                        alignment=ft.alignment.center,
+                                        margin=ft.margin.only(top=25)
                                     )
-                                ], spacing=5),
-                            ]),
-                            margin=ft.margin.only(bottom=15)
-                        ),
-                        
-                        self.password_strength_bar,
-                        ft.Container(height=15),  # Spacing
-                        
-                        # Password Analysis
-                        ft.Text("Password Analysis:", size=14, weight=ft.FontWeight.BOLD),
-                        self.feedback_text,
-                        ft.Container(height=20),  # Spacing
-                        
-                        # Additional Actions
-                        ft.Text("Password Actions:", size=14, weight=ft.FontWeight.BOLD),
-                        ft.Container(height=5),  # Spacing
-                        ft.Row([
-                            ft.ElevatedButton(
-                                "Copy Password",
-                                icon=ft.icons.COPY,
-                                on_click=self.copy_password
+                                ], spacing=10),
+                                padding=25
                             ),
-                            ft.ElevatedButton(
-                                "Generate New Password",
-                                icon=ft.icons.REFRESH,
-                                on_click=self.generate_password
-                            ),
-                            ft.ElevatedButton(
-                                "Toggle Visibility",
-                                icon=ft.icons.VISIBILITY,
-                                on_click=self.toggle_password_visibility
-                            )
-                        ], spacing=10)
-                    ], spacing=5),  # Spacing between all column elements
-                    padding=25,  # Increased padding
-                    border=ft.border.all(1, ft.colors.OUTLINE),
-                    border_radius=10,
-                    margin=ft.margin.only(bottom=30)
-                ),
-                
-                # Password history section (using the stored reference)
-                ft.Container(  # Wrapped history section
-                    content=self.history_container,
-                    margin=ft.margin.only(top=20, bottom=30)
-                ),
-                
-                # Save password section
-                ft.Container(
-                    content=ft.Text("Save Password", size=18, weight=ft.FontWeight.BOLD),
-                    margin=ft.margin.only(top=10, bottom=5)
-                ),
-                ft.Divider(height=2),
-                
-                # Save password form - adjusted spacing
-                ft.Container(
-                    content=ft.Column([
-                        ft.Text("Save Password Details", size=16, weight=ft.FontWeight.BOLD),
-                        ft.Container(height=15),
-                        ft.Container(
-                            content=self.website_input,
-                            margin=ft.margin.only(bottom=25)
+                            elevation=0,
+                            color=ft.colors.SURFACE
                         ),
-                        
-                        ft.Container(
-                            content=self.username_input,
-                            margin=ft.margin.only(bottom=25)
-                        ),
-                        
-                        ft.Container(
-                            content=ft.Row([
-                                self.category_dropdown
-                            ]),
-                            margin=ft.margin.only(bottom=25)
-                        ),
-                        
-                        ft.Container(
-                            content=self.notes_input,
-                            margin=ft.margin.only(bottom=25)
-                        ),
-                    ]),
-                    margin=ft.margin.only(top=20, bottom=20),
-                    padding=10
-                ),
-                
-                ft.Container(
-                    content=ft.ElevatedButton(
-                        "Save Password",
-                        icon=ft.icons.SAVE,
-                        on_click=self.save_password,
-                        style=ft.ButtonStyle(
-                            shape=ft.RoundedRectangleBorder(radius=10)
-                        )
-                    ),
-                    alignment=ft.alignment.center,
-                    margin=ft.margin.only(top=10, bottom=30)
+                    ], spacing=0, expand=True),
+                    expand=True
                 )
-            ], 
-            spacing=0,  # We're using explicit spacing with Container height
-            scroll=ft.ScrollMode.AUTO),
-            padding=30,  # Increased overall padding
+            ], spacing=0, expand=True),
+            padding=20,
             expand=True
         )
     
@@ -468,25 +446,21 @@ class GeneratorTab:
         try:
             password = self.password_generator.generate_password(keywords, constraints)
             
-            # Update UI - make sure password is visible initially
+            # Update UI
             self.generated_password.value = password
-            self.generated_password.password = False  # Ensure password is visible
+            self.generated_password.password = False  # Ensure password is visible initially
             
-            # Update the visibility icon to show the correct state
-            # Find the visibility toggle button and update its icon
+            # Update the visibility icon (first icon in the suffix row)
             for control in self.generated_password.suffix.controls:
                 if isinstance(control, ft.IconButton) and control.tooltip == "Show/Hide Password":
                     control.icon = ft.icons.VISIBILITY_OFF  # Show the "visibility_off" icon when password is visible
-            
-            # Force the text field to update
-            self.generated_password.update()
             
             # Check password strength
             strength = self.password_generator.check_password_strength(password)
             
             # Update strength indicators
             self.password_strength_bar.value = strength['score'] / 100
-            self.strength_label.value = f"{strength['score']}%"
+            self.strength_label.value = f"Strength: {strength['score']}%"
             
             # Set color based on strength
             if strength['score'] < 50:
@@ -495,14 +469,6 @@ class GeneratorTab:
                 self.password_strength_bar.color = ft.colors.ORANGE
             else:
                 self.password_strength_bar.color = ft.colors.GREEN
-            
-            # Update visual strength meter
-            for i, indicator in enumerate(self.strength_indicators):
-                if i == 0:  # First indicator always visible
-                    indicator.visible = True
-                else:
-                    # Show indicators based on strength score
-                    indicator.visible = strength['score'] >= (i * 25)
             
             # Update feedback
             if strength['feedback']:
@@ -536,7 +502,7 @@ class GeneratorTab:
         
         # Add history items to the list
         for pwd in self.password_history:
-            # Create a history item
+            # Create a history item with modern, minimalist design
             history_item = ft.Container(
                 content=ft.Row([
                     ft.Text(
@@ -553,15 +519,17 @@ class GeneratorTab:
                 ]),
                 padding=10,
                 border_radius=5,
-                bgcolor=ft.colors.SURFACE_VARIANT,  # Fixed: removed with_opacity
-                margin=ft.margin.only(bottom=5)  # Add margin between items
+                bgcolor=ft.colors.SURFACE_VARIANT,
+                margin=ft.margin.only(bottom=5)
             )
             
             self.history_list.controls.append(history_item)
         
         # Make history section visible if it has items
-        if self.password_history:
-            self.history_container.visible = True
+        self.history_visible = len(self.password_history) > 0
+        
+        # Update the UI
+        self.main_window.page.update()
     
     def _copy_history_password(self, password):
         """
@@ -609,7 +577,7 @@ class GeneratorTab:
         self.password_storage.add_password(password)
         
         # Show success message
-        self.main_window.show_snackbar("Password saved successfully")
+        self.main_window.show_snackbar("Password saved")
         
         # Clear input fields
         self.website_input.value = ""
@@ -620,17 +588,17 @@ class GeneratorTab:
         if hasattr(self.main_window, 'storage_tab') and hasattr(self.main_window.storage_tab, '_load_passwords'):
             self.main_window.storage_tab._load_passwords()
             
-            # Show a refresh button to navigate to the passwords tab
+            # Show a minimalist dialog to navigate to the passwords tab
             def navigate_to_passwords(e):
                 self.main_window.navigate_to_tab(1)  # Index 1 is the passwords tab
                 self.main_window.page.update()
                 
             refresh_dialog = ft.AlertDialog(
-                title=ft.Text("Password Saved"),
-                content=ft.Text("Password has been saved successfully. Would you like to view your stored passwords?"),
+                title=ft.Text("Saved", weight=ft.FontWeight.W_300),
+                content=ft.Text("Password saved. View your stored passwords?"),
                 actions=[
                     ft.TextButton("Later", on_click=lambda e: self.main_window.close_dialog(e)),
-                    ft.TextButton("View Passwords", on_click=navigate_to_passwords)
+                    ft.TextButton("View", on_click=navigate_to_passwords)
                 ]
             )
             
@@ -651,12 +619,10 @@ class GeneratorTab:
         self.generated_password.password = not self.generated_password.password
         
         # Update the icon based on the current state
-        # When password=True (hidden), show VISIBILITY icon (eye open)
-        # When password=False (visible), show VISIBILITY_OFF icon (eye with slash)
         if self.generated_password.password:
             e.control.icon = ft.icons.VISIBILITY  # Show the "visibility" icon when password is hidden
         else:
             e.control.icon = ft.icons.VISIBILITY_OFF  # Show the "visibility_off" icon when password is visible
         
-        # Ensure the password field is updated
+        # Update the page
         self.main_window.page.update()
