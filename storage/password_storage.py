@@ -1,9 +1,15 @@
 import json
 import os
 import uuid
+import base64
 from typing import Dict, List, Any, Optional
 from datetime import datetime
+
 from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM, ChaCha20Poly1305
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+import secrets
 
 class Password:
     """
@@ -163,32 +169,106 @@ class PasswordStorage:
                 print(f"Error loading app settings: {e}")
         return {'storage_location': './storage'}
     
-    def _initialize_encryption(self) -> Fernet:
+    def _initialize_encryption(self):
         """
         Initialize or load the encryption key.
         
         Returns:
-            Fernet cipher for encryption/decryption
+            Encryption cipher for the selected algorithm
         """
+        # Get encryption algorithm from settings
+        self.app_settings = self._load_app_settings()
+        self.encryption_algorithm = self.app_settings.get('encryption_algorithm', 'fernet')
+        
+        # Salt is stored with key material
+        self.salt = None
+        self.nonce = None
+        
         if os.path.exists(self.key_file):
             # Load existing key
             try:
                 with open(self.key_file, 'rb') as f:
-                    key = f.read()
-            except IOError as e:
-                print(f"Error loading encryption key: {e}")
-                key = Fernet.generate_key()
-                self._save_key(key)
+                    file_content = f.read()
+                    
+                try:
+                    # Try to parse as JSON (new format)
+                    key_data = json.loads(file_content.decode('utf-8'))
+                    key = base64.b64decode(key_data['key'])
+                    
+                    # Load additional parameters if available
+                    if 'salt' in key_data:
+                        self.salt = base64.b64decode(key_data['salt'])
+                    if 'nonce' in key_data:
+                        self.nonce = base64.b64decode(key_data['nonce'])
+                    
+                    # For Fernet, we need the key in a specific format
+                    if self.encryption_algorithm == 'fernet':
+                        return Fernet(file_content if isinstance(file_content, bytes) else file_content.encode())
+                    elif self.encryption_algorithm == 'aes-gcm':
+                        return AESGCM(key)
+                    elif self.encryption_algorithm == 'chacha20':
+                        return ChaCha20Poly1305(key)
+                    else:
+                        # Default to Fernet
+                        return Fernet(Fernet.generate_key())
+                    
+                except json.JSONDecodeError:
+                    # This is the old format with just a raw Fernet key
+                    print("Using existing Fernet key")
+                    # Use the raw key directly with Fernet
+                    return Fernet(file_content)
+                    
+            except Exception as e:
+                print(f"Error loading encryption key: {e}, generating new key")
+                # Generate a new key for the algorithm
+                if self.encryption_algorithm == 'fernet':
+                    key = Fernet.generate_key()
+                    self._save_raw_key(key)
+                    return Fernet(key)
+                else:
+                    # For other algorithms, generate appropriate keys
+                    if self.encryption_algorithm == 'aes-gcm':
+                        key = secrets.token_bytes(32)  # 256 bits for AES-GCM
+                        self.salt = secrets.token_bytes(16)
+                        self.nonce = secrets.token_bytes(12)
+                    elif self.encryption_algorithm == 'chacha20':
+                        key = secrets.token_bytes(32)  # 256 bits for ChaCha20
+                        self.salt = secrets.token_bytes(16)
+                        self.nonce = secrets.token_bytes(12)
+                    
+                    self._save_key_material(key, self.salt, self.nonce)
+                    
+                    if self.encryption_algorithm == 'aes-gcm':
+                        return AESGCM(key)
+                    elif self.encryption_algorithm == 'chacha20':
+                        return ChaCha20Poly1305(key)
         else:
-            # Generate new key
-            key = Fernet.generate_key()
-            self._save_key(key)
-        
-        return Fernet(key)
+            # No existing key, generate a new one
+            if self.encryption_algorithm == 'fernet':
+                key = Fernet.generate_key()
+                self._save_raw_key(key)
+                return Fernet(key)
+            else:
+                # For other algorithms, generate appropriate keys
+                if self.encryption_algorithm == 'aes-gcm':
+                    key = secrets.token_bytes(32)  # 256 bits for AES-GCM
+                    self.salt = secrets.token_bytes(16)
+                    self.nonce = secrets.token_bytes(12)
+                elif self.encryption_algorithm == 'chacha20':
+                    key = secrets.token_bytes(32)  # 256 bits for ChaCha20
+                    self.salt = secrets.token_bytes(16)
+                    self.nonce = secrets.token_bytes(12)
+                
+                self._save_key_material(key, self.salt, self.nonce)
+                
+                if self.encryption_algorithm == 'aes-gcm':
+                    return AESGCM(key)
+                elif self.encryption_algorithm == 'chacha20':
+                    return ChaCha20Poly1305(key)
     
-    def _save_key(self, key: bytes) -> None:
+    def _save_raw_key(self, key: bytes) -> None:
         """
-        Save the encryption key to file.
+        Save a raw encryption key to file.
         
         Args:
             key: The encryption key to save
@@ -199,9 +279,35 @@ class PasswordStorage:
         except IOError as e:
             print(f"Error saving encryption key: {e}")
     
+    def _save_key_material(self, key: bytes, salt: bytes = None, nonce: bytes = None) -> None:
+        """
+        Save the encryption key and related material to file.
+        
+        Args:
+            key: The encryption key to save
+            salt: Salt for key derivation
+            nonce: Nonce for encryption
+        """
+        try:
+            # Store key material as JSON with base64 encoding
+            key_data = {
+                'key': base64.b64encode(key).decode('utf-8'),
+                'algorithm': self.encryption_algorithm
+            }
+            
+            if salt:
+                key_data['salt'] = base64.b64encode(salt).decode('utf-8')
+            if nonce:
+                key_data['nonce'] = base64.b64encode(nonce).decode('utf-8')
+            
+            with open(self.key_file, 'wb') as f:
+                f.write(json.dumps(key_data).encode('utf-8'))
+        except IOError as e:
+            print(f"Error saving encryption key: {e}")
+    
     def _encrypt(self, data: str) -> str:
         """
-        Encrypt a string.
+        Encrypt a string with the current algorithm.
         
         Args:
             data: String to encrypt
@@ -209,14 +315,37 @@ class PasswordStorage:
         Returns:
             Base64-encoded encrypted string
         """
-        return self.cipher.encrypt(data.encode()).decode()
+        if not data:
+            return ""
+            
+        data_bytes = data.encode()
+        encrypted = None
+        
+        if self.encryption_algorithm == 'fernet':
+            # Use Fernet for encryption
+            encrypted = self.cipher.encrypt(data_bytes)
+        elif self.encryption_algorithm == 'aes-gcm':
+            # Use AES-GCM for encryption
+            # Generate a unique nonce for each encryption
+            nonce = secrets.token_bytes(12)
+            encrypted = nonce + self.cipher.encrypt(nonce, data_bytes, None)
+        elif self.encryption_algorithm == 'chacha20':
+            # Use ChaCha20Poly1305 for encryption
+            # Generate a unique nonce for each encryption
+            nonce = secrets.token_bytes(12)
+            encrypted = nonce + self.cipher.encrypt(nonce, data_bytes, None)
+        else:
+            # Default to Fernet
+            encrypted = self.cipher.encrypt(data_bytes)
+        
+        return base64.b64encode(encrypted).decode()
     
     def _decrypt(self, encrypted_data: str) -> str:
         """
-        Decrypt data using the encryption key.
+        Decrypt data using the encryption key and current algorithm.
         
         Args:
-            encrypted_data: Encrypted data
+            encrypted_data: Base64-encoded encrypted data
             
         Returns:
             Decrypted data
@@ -224,12 +353,110 @@ class PasswordStorage:
         try:
             if not encrypted_data:
                 return ""
-            decrypted_bytes = self.cipher.decrypt(encrypted_data.encode())
+                
+            encrypted_bytes = base64.b64decode(encrypted_data)
+            
+            if self.encryption_algorithm == 'fernet':
+                # Use Fernet for decryption
+                decrypted_bytes = self.cipher.decrypt(encrypted_bytes)
+            elif self.encryption_algorithm == 'aes-gcm':
+                # Use AES-GCM for decryption
+                # First 12 bytes are the nonce
+                nonce = encrypted_bytes[:12]
+                ciphertext = encrypted_bytes[12:]
+                decrypted_bytes = self.cipher.decrypt(nonce, ciphertext, None)
+            elif self.encryption_algorithm == 'chacha20':
+                # Use ChaCha20Poly1305 for decryption
+                # First 12 bytes are the nonce
+                nonce = encrypted_bytes[:12]
+                ciphertext = encrypted_bytes[12:]
+                decrypted_bytes = self.cipher.decrypt(nonce, ciphertext, None)
+            else:
+                # Default to Fernet
+                decrypted_bytes = self.cipher.decrypt(encrypted_bytes)
+            
             return decrypted_bytes.decode()
         except Exception as e:
             print(f"Error decrypting data: {e}")
             return "[Error: Could not decrypt]"
     
+    def update_encryption_algorithm(self, new_algorithm: str) -> None:
+        """
+        Change the encryption algorithm and re-encrypt all passwords.
+        
+        Args:
+            new_algorithm: The new encryption algorithm to use
+        """
+        if new_algorithm not in ['fernet', 'aes-gcm', 'chacha20']:
+            raise ValueError(f"Unsupported encryption algorithm: {new_algorithm}")
+            
+        # Get the current passwords (decrypted)
+        current_passwords = self.get_all_passwords()
+        
+        # Change the algorithm
+        old_algorithm = self.encryption_algorithm
+        self.encryption_algorithm = new_algorithm
+        
+        # Initialize with new algorithm
+        if new_algorithm == 'fernet':
+            key = Fernet.generate_key()
+            self._save_raw_key(key)
+            self.cipher = Fernet(key)
+        else:
+            # For other algorithms, generate appropriate keys
+            if new_algorithm == 'aes-gcm':
+                key = secrets.token_bytes(32)  # 256 bits for AES-GCM
+                self.salt = secrets.token_bytes(16)
+                self.nonce = secrets.token_bytes(12)
+                self.cipher = AESGCM(key)
+            elif new_algorithm == 'chacha20':
+                key = secrets.token_bytes(32)  # 256 bits for ChaCha20
+                self.salt = secrets.token_bytes(16)
+                self.nonce = secrets.token_bytes(12)
+                self.cipher = ChaCha20Poly1305(key)
+            
+            self._save_key_material(key, self.salt, self.nonce)
+        
+        # Re-encrypt all passwords
+        self.passwords = current_passwords
+        self._save_passwords()
+        
+        # Update the app settings
+        self.app_settings['encryption_algorithm'] = new_algorithm
+        with open('app_settings.json', 'w') as f:
+            json.dump(self.app_settings, f, indent=2)
+    
+    def rotate_encryption_key(self) -> None:
+        """
+        Rotate the encryption key while maintaining the same algorithm.
+        """
+        # Get the current passwords (decrypted)
+        current_passwords = self.get_all_passwords()
+        
+        # Generate new key based on algorithm
+        if self.encryption_algorithm == 'fernet':
+            key = Fernet.generate_key()
+            self._save_raw_key(key)
+            self.cipher = Fernet(key)
+        else:
+            # For other algorithms, generate appropriate keys
+            if self.encryption_algorithm == 'aes-gcm':
+                key = secrets.token_bytes(32)  # 256 bits for AES-GCM
+                self.salt = secrets.token_bytes(16)
+                self.nonce = secrets.token_bytes(12)
+                self.cipher = AESGCM(key)
+            elif self.encryption_algorithm == 'chacha20':
+                key = secrets.token_bytes(32)  # 256 bits for ChaCha20
+                self.salt = secrets.token_bytes(16)
+                self.nonce = secrets.token_bytes(12)
+                self.cipher = ChaCha20Poly1305(key)
+            
+            self._save_key_material(key, self.salt, self.nonce)
+        
+        # Re-encrypt all passwords
+        self.passwords = current_passwords
+        self._save_passwords()
+        
     def _load_passwords(self) -> None:
         """
         Load passwords from the storage file.

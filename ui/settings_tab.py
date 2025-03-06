@@ -2,6 +2,7 @@ import flet as ft
 from typing import List, Dict, Any, Optional, Callable
 import os
 import json
+from storage.password_storage import PasswordStorage
 
 class SettingsTab:
     """
@@ -58,6 +59,38 @@ class SettingsTab:
             "Browse",
             icon=ft.icons.FOLDER_OPEN,
             on_click=self.browse_storage_location
+        )
+        
+        # Encryption settings
+        self.encryption_algorithm = ft.Dropdown(
+            label="Encryption Algorithm",
+            hint_text="Select encryption algorithm",
+            options=[
+                ft.dropdown.Option("Fernet (Default)", "fernet"),
+                ft.dropdown.Option("AES-GCM", "aes-gcm"),
+                ft.dropdown.Option("ChaCha20-Poly1305", "chacha20"),
+            ],
+            value=self.settings.get("encryption_algorithm", "fernet"),
+            on_change=self.save_encryption_algorithm
+        )
+        
+        self.encryption_key_rotation = ft.Dropdown(
+            label="Key Rotation Policy",
+            hint_text="Select key rotation policy",
+            options=[
+                ft.dropdown.Option("Manual", "manual"),
+                ft.dropdown.Option("Every month", "monthly"),
+                ft.dropdown.Option("Every 3 months", "quarterly"),
+                ft.dropdown.Option("Every year", "yearly"),
+            ],
+            value=self.settings.get("key_rotation", "manual"),
+            on_change=self.save_key_rotation
+        )
+        
+        self.rotate_key_button = ft.ElevatedButton(
+            "Rotate Encryption Key Now",
+            icon=ft.icons.REFRESH,
+            on_click=self.rotate_encryption_key
         )
         
         self.backup_switch = ft.Switch(
@@ -133,6 +166,30 @@ class SettingsTab:
                         self.backup_switch,
                         ft.Text("Maximum number of backups:"),
                         self.max_backups
+                    ]),
+                    padding=10,
+                    border=ft.border.all(1, ft.colors.OUTLINE),
+                    border_radius=10,
+                    margin=ft.margin.only(bottom=20)
+                ),
+                
+                # Security section
+                ft.Text("Security & Encryption", size=18, weight=ft.FontWeight.BOLD),
+                ft.Container(
+                    content=ft.Column([
+                        self.encryption_algorithm,
+                        self.encryption_key_rotation,
+                        ft.Container(
+                            content=self.rotate_key_button,
+                            alignment=ft.alignment.center,
+                            margin=ft.margin.only(top=10)
+                        ),
+                        ft.Text(
+                            "Note: Changing the encryption algorithm will re-encrypt all passwords.",
+                            size=12,
+                            color=ft.colors.GREY_600,
+                            italic=True
+                        )
                     ]),
                     padding=10,
                     border=ft.border.all(1, ft.colors.OUTLINE),
@@ -295,6 +352,75 @@ class SettingsTab:
         self.settings["max_backups"] = self.max_backups.value
         self._save_settings()
     
+    def save_encryption_algorithm(self, e):
+        """
+        Save the encryption algorithm setting.
+        
+        Args:
+            e: Change event
+        """
+        new_algorithm = e.control.value
+        old_algorithm = self.settings.get("encryption_algorithm", "fernet")
+        
+        if new_algorithm != old_algorithm:
+            def confirm_algorithm_change():
+                self.settings["encryption_algorithm"] = new_algorithm
+                self._save_settings()
+                
+                # Re-encrypt all passwords with the new algorithm
+                try:
+                    storage = PasswordStorage()
+                    storage.update_encryption_algorithm(new_algorithm)
+                    self.main_window.show_snackbar(f"Encryption algorithm changed to {new_algorithm}")
+                except Exception as ex:
+                    self.main_window.show_error(f"Error changing encryption algorithm: {str(ex)}")
+                    # Revert UI
+                    e.control.value = old_algorithm
+                    self.main_window.page.update()
+            
+            # Show confirmation dialog
+            self.main_window.show_confirm_dialog(
+                "Change Encryption Algorithm",
+                "This will re-encrypt all your passwords with the new algorithm. This operation cannot be undone. Continue?",
+                confirm_algorithm_change
+            )
+        else:
+            # No change, just save
+            self.settings["encryption_algorithm"] = new_algorithm
+            self._save_settings()
+    
+    def save_key_rotation(self, e):
+        """
+        Save the key rotation policy setting.
+        
+        Args:
+            e: Change event
+        """
+        self.settings["key_rotation"] = e.control.value
+        self._save_settings()
+    
+    def rotate_encryption_key(self, e):
+        """
+        Rotate the encryption key immediately.
+        
+        Args:
+            e: Click event
+        """
+        def confirm_key_rotation():
+            try:
+                storage = PasswordStorage()
+                storage.rotate_encryption_key()
+                self.main_window.show_snackbar("Encryption key rotated successfully")
+            except Exception as ex:
+                self.main_window.show_error(f"Error rotating encryption key: {str(ex)}")
+        
+        # Show confirmation dialog
+        self.main_window.show_confirm_dialog(
+            "Rotate Encryption Key",
+            "This will generate a new encryption key and re-encrypt all passwords. Continue?",
+            confirm_key_rotation
+        )
+    
     def reset_settings(self, e):
         """
         Reset settings to defaults.
@@ -310,7 +436,9 @@ class SettingsTab:
                 "clipboard_timeout": 30,
                 "storage_location": "",
                 "create_backups": True,
-                "max_backups": 3
+                "max_backups": 3,
+                "encryption_algorithm": "fernet",
+                "key_rotation": "manual"
             }
             
             # Save settings
@@ -323,6 +451,8 @@ class SettingsTab:
             self.storage_location.value = self.settings["storage_location"]
             self.backup_switch.value = self.settings["create_backups"]
             self.max_backups.value = self.settings["max_backups"]
+            self.encryption_algorithm.value = self.settings["encryption_algorithm"]
+            self.encryption_key_rotation.value = self.settings["key_rotation"]
             
             # Apply theme
             self.main_window.page.theme_mode = ft.ThemeMode.SYSTEM

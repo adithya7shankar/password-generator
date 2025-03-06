@@ -271,17 +271,29 @@ class GeneratorTab:
                     margin=ft.margin.only(top=10, bottom=25)
                 ),
                 
-                # Generated password section
+                # Generated Password display
                 ft.Container(
                     content=ft.Column([
                         ft.Text("Generated Password", size=16, weight=ft.FontWeight.BOLD),
-                        ft.Container(height=15),
-                        ft.Container(  # Wrapped password field
+                        ft.Container(height=10),
+                        ft.Container(
                             content=self.generated_password,
-                            height=65,  # Fixed height
-                            margin=ft.margin.only(bottom=15)
-                        ),
-                        ft.Container(height=20),
+                            height=65
+                        )
+                    ]),
+                    padding=25,
+                    border=ft.border.all(1, ft.colors.OUTLINE),
+                    border_radius=10,
+                    margin=ft.margin.only(bottom=30)
+                ),
+                
+                # Password strength and features section
+                ft.Container(
+                    content=ft.Column([
+                        ft.Text("Password Strength & Features", size=16, weight=ft.FontWeight.BOLD),
+                        ft.Container(height=15),
+                        
+                        # Password Strength Indicators
                         ft.Container(  # Wrapped strength row
                             content=ft.Row([
                                 ft.Column([
@@ -299,11 +311,35 @@ class GeneratorTab:
                             ]),
                             margin=ft.margin.only(bottom=15)
                         ),
-                        ft.Container(height=15),  # Spacing
+                        
                         self.password_strength_bar,
                         ft.Container(height=15),  # Spacing
-                        ft.Text("Feedback:", size=14),
-                        self.feedback_text
+                        
+                        # Password Analysis
+                        ft.Text("Password Analysis:", size=14, weight=ft.FontWeight.BOLD),
+                        self.feedback_text,
+                        ft.Container(height=20),  # Spacing
+                        
+                        # Additional Actions
+                        ft.Text("Password Actions:", size=14, weight=ft.FontWeight.BOLD),
+                        ft.Container(height=5),  # Spacing
+                        ft.Row([
+                            ft.ElevatedButton(
+                                "Copy Password",
+                                icon=ft.icons.COPY,
+                                on_click=self.copy_password
+                            ),
+                            ft.ElevatedButton(
+                                "Generate New Password",
+                                icon=ft.icons.REFRESH,
+                                on_click=self.generate_password
+                            ),
+                            ft.ElevatedButton(
+                                "Toggle Visibility",
+                                icon=ft.icons.VISIBILITY,
+                                on_click=self.toggle_password_visibility
+                            )
+                        ], spacing=10)
                     ], spacing=5),  # Spacing between all column elements
                     padding=25,  # Increased padding
                     border=ft.border.all(1, ft.colors.OUTLINE),
@@ -442,6 +478,9 @@ class GeneratorTab:
                 if isinstance(control, ft.IconButton) and control.tooltip == "Show/Hide Password":
                     control.icon = ft.icons.VISIBILITY_OFF  # Show the "visibility_off" icon when password is visible
             
+            # Force the text field to update
+            self.generated_password.update()
+            
             # Check password strength
             strength = self.password_generator.check_password_strength(password)
             
@@ -577,20 +616,29 @@ class GeneratorTab:
         self.username_input.value = ""
         self.notes_input.value = ""
         
-        # Get the storage tab to refresh its password list
-        storage_tab = None
-        if hasattr(self.main_window, 'tabs') and len(self.main_window.tabs) > 1:
-            storage_tab = self.main_window.tabs[1]  # Index 1 should be the storage tab
-        
-        # Refresh the storage tab password list if it exists
-        if storage_tab and hasattr(storage_tab, '_load_passwords'):
-            storage_tab._load_passwords()
+        # Refresh the storage tab password list
+        if hasattr(self.main_window, 'storage_tab') and hasattr(self.main_window.storage_tab, '_load_passwords'):
+            self.main_window.storage_tab._load_passwords()
+            
+            # Show a refresh button to navigate to the passwords tab
+            def navigate_to_passwords(e):
+                self.main_window.navigate_to_tab(1)  # Index 1 is the passwords tab
+                self.main_window.page.update()
+                
+            refresh_dialog = ft.AlertDialog(
+                title=ft.Text("Password Saved"),
+                content=ft.Text("Password has been saved successfully. Would you like to view your stored passwords?"),
+                actions=[
+                    ft.TextButton("Later", on_click=lambda e: self.main_window.close_dialog(e)),
+                    ft.TextButton("View Passwords", on_click=navigate_to_passwords)
+                ]
+            )
+            
+            self.main_window.page.dialog = refresh_dialog
+            refresh_dialog.open = True
         
         # Update the UI
         self.main_window.page.update()
-        
-        # Navigate to the passwords tab
-        self.main_window.navigate_to_tab(1)  # Index 1 is the passwords tab
     
     def toggle_password_visibility(self, e):
         """

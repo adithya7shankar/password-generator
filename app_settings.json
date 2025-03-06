@@ -4,5 +4,7 @@
   "clipboard_timeout": 30,
   "storage_location": "/Volumes/Macintosh HD/Users/adithyashankar/Downloads",
   "create_backups": true,
-  "max_backups": 3
+  "max_backups": 10.0,
+  "encryption_algorithm": "fernet",
+  "key_rotation": "Manual"
 }
