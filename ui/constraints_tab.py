@@ -153,7 +153,7 @@ class ConstraintsTab:
                 ),
                 
                 # Constraint list and details section
-                ft.Row([
+                ft.ResponsiveRow([
                     # Constraint list
                     ft.Container(
                         content=ft.Column([
@@ -165,18 +165,20 @@ class ConstraintsTab:
                                 padding=10,
                                 expand=True
                             )
-                        ]),
+                        ], expand=True),
                         expand=True,
-                        margin=ft.margin.only(right=10)
+                        margin=ft.margin.only(right=10),
+                        col={"sm": 12, "md": 6, "lg": 5, "xl": 4}
                     ),
                     
                     # Constraint details
                     ft.Container(
                         content=ft.Column([
                             self.constraint_details
-                        ]),
+                        ], expand=True),
                         expand=True,
-                        margin=ft.margin.only(left=10)
+                        margin=ft.margin.only(left=10),
+                        col={"sm": 12, "md": 6, "lg": 7, "xl": 8}
                     )
                 ], expand=True)
             ], expand=True),

@@ -2,6 +2,8 @@ import flet as ft
 from typing import List, Dict, Any, Optional, Callable
 import os
 import json
+import shutil
+import datetime
 from storage.password_storage import PasswordStorage
 
 class SettingsTab:
@@ -33,7 +35,6 @@ class SettingsTab:
             on_change=self.save_theme_setting,
             expand=True,
             border_radius=8,
-            height=65,
             width=None  # Allow the width to be determined by the parent container
         )
         
@@ -58,6 +59,29 @@ class SettingsTab:
             width=None  # Allow the width to be determined by the parent container
         )
         
+        # Auto logout feature
+        self.auto_logout_switch = ft.Switch(
+            label="Automatically log out after inactivity",
+            value=self.settings.get("auto_logout", False),
+            on_change=self.save_auto_logout_setting,
+            active_color=ft.colors.BLUE_GREY,
+            label_position=ft.LabelPosition.RIGHT
+        )
+        
+        self.logout_timeout = ft.Slider(
+            min=1,
+            max=30,
+            divisions=29,
+            label="{value} minutes",
+            value=self.settings.get("logout_timeout", 5),
+            on_change=self.save_logout_timeout,
+            active_color=ft.colors.BLUE_GREY,
+            height=50,
+            expand=True,
+            disabled=not self.settings.get("auto_logout", False),
+            width=None  # Allow the width to be determined by the parent container
+        )
+        
         self.storage_location = ft.TextField(
             label="Storage Location",
             value=self.settings.get("storage_location", ""),
@@ -65,7 +89,6 @@ class SettingsTab:
             on_change=self.save_storage_location,
             expand=True,
             border_radius=8,
-            height=65,
             width=None  # Allow the width to be determined by the parent container
         )
         
@@ -89,7 +112,6 @@ class SettingsTab:
             on_change=self.save_encryption_algorithm,
             expand=True,
             border_radius=8,
-            height=65,
             width=None  # Allow the width to be determined by the parent container
         )
         
@@ -106,7 +128,6 @@ class SettingsTab:
             on_change=self.save_key_rotation,
             expand=True,
             border_radius=8,
-            height=65,
             width=None  # Allow the width to be determined by the parent container
         )
         
@@ -133,9 +154,47 @@ class SettingsTab:
             value=self.settings.get("max_backups", 3),
             on_change=self.save_max_backups,
             active_color=ft.colors.BLUE_GREY,
+            height=50,
+            disabled=not self.settings.get("create_backups", True)
+        )
+        
+        # Import/Export buttons
+        self.export_button = ft.FilledButton(
+            "Export Passwords",
+            icon=ft.icons.UPLOAD_FILE,
+            on_click=self.export_passwords,
+            style=ft.ButtonStyle(
+                color=ft.colors.PRIMARY
+            ),
             height=50
         )
         
+        self.import_button = ft.FilledButton(
+            "Import Passwords",
+            icon=ft.icons.DOWNLOAD_FILE,
+            on_click=self.import_passwords,
+            style=ft.ButtonStyle(
+                color=ft.colors.PRIMARY
+            ),
+            height=50
+        )
+        
+        # Backup/Restore buttons
+        self.backup_button = ft.FilledButton(
+            "Backup All Data",
+            icon=ft.icons.BACKUP,
+            on_click=self.backup_data,
+            height=50
+        )
+        
+        self.restore_button = ft.FilledButton(
+            "Restore From Backup",
+            icon=ft.icons.RESTORE,
+            on_click=self.restore_data,
+            height=50
+        )
+        
+        # Reset button
         self.reset_button = ft.OutlinedButton(
             "Reset to Defaults",
             icon=ft.icons.RESTORE,
@@ -171,6 +230,12 @@ class SettingsTab:
                                     ft.Text("Appearance", size=16, weight=ft.FontWeight.W_500),
                                     ft.Divider(height=1, color=ft.colors.OUTLINE_VARIANT),
                                     ft.Container(height=20),
+                                    ft.Text(
+                                        "Choose how the application looks. System will match your device settings.",
+                                        size=12,
+                                        color=ft.colors.GREY_600
+                                    ),
+                                    ft.Container(height=10),
                                     self.theme_dropdown
                                 ], spacing=10),
                                 padding=25
@@ -187,11 +252,55 @@ class SettingsTab:
                                     ft.Text("Password Generation", size=16, weight=ft.FontWeight.W_500),
                                     ft.Divider(height=1, color=ft.colors.OUTLINE_VARIANT),
                                     ft.Container(height=20),
+                                    ft.Text(
+                                        "Configure how passwords are generated and handled.",
+                                        size=12,
+                                        color=ft.colors.GREY_600
+                                    ),
+                                    ft.Container(height=10),
                                     self.auto_save_switch,
                                     ft.Container(height=20),
                                     ft.Text("Clear clipboard after:", size=14),
                                     ft.Container(height=10),
-                                    self.clipboard_timeout
+                                    self.clipboard_timeout,
+                                    ft.Container(height=10),
+                                    ft.Text(
+                                        "For security, passwords in clipboard will be cleared automatically after this time.",
+                                        size=12,
+                                        color=ft.colors.GREY_600
+                                    )
+                                ], spacing=10),
+                                padding=25
+                            ),
+                            elevation=0,
+                            color=ft.colors.SURFACE,
+                            margin=ft.margin.only(bottom=20)
+                        ),
+                        
+                        # Security settings
+                        ft.Card(
+                            content=ft.Container(
+                                content=ft.Column([
+                                    ft.Text("Auto Logout", size=16, weight=ft.FontWeight.W_500),
+                                    ft.Divider(height=1, color=ft.colors.OUTLINE_VARIANT),
+                                    ft.Container(height=20),
+                                    ft.Text(
+                                        "Configure automatic logout for security.",
+                                        size=12,
+                                        color=ft.colors.GREY_600
+                                    ),
+                                    ft.Container(height=10),
+                                    self.auto_logout_switch,
+                                    ft.Container(height=20),
+                                    ft.Text("Logout after inactivity:", size=14),
+                                    ft.Container(height=10),
+                                    self.logout_timeout,
+                                    ft.Container(height=10),
+                                    ft.Text(
+                                        "The application will automatically lock after this period of inactivity.",
+                                        size=12,
+                                        color=ft.colors.GREY_600
+                                    )
                                 ], spacing=10),
                                 padding=25
                             ),
@@ -209,6 +318,12 @@ class SettingsTab:
                                     ft.Text("Storage", size=16, weight=ft.FontWeight.W_500),
                                     ft.Divider(height=1, color=ft.colors.OUTLINE_VARIANT),
                                     ft.Container(height=20),
+                                    ft.Text(
+                                        "Configure where your password data is stored.",
+                                        size=12,
+                                        color=ft.colors.GREY_600
+                                    ),
+                                    ft.Container(height=10),
                                     ft.Row([
                                         self.storage_location,
                                         ft.Container(width=15),
@@ -219,7 +334,13 @@ class SettingsTab:
                                     ft.Container(height=20),
                                     ft.Text("Maximum number of backups:", size=14),
                                     ft.Container(height=10),
-                                    self.max_backups
+                                    self.max_backups,
+                                    ft.Container(height=10),
+                                    ft.Text(
+                                        "Old backups will be removed when this limit is reached.",
+                                        size=12,
+                                        color=ft.colors.GREY_600
+                                    )
                                 ], spacing=10),
                                 padding=25
                             ),
@@ -235,9 +356,27 @@ class SettingsTab:
                                     ft.Text("Security & Encryption", size=16, weight=ft.FontWeight.W_500),
                                     ft.Divider(height=1, color=ft.colors.OUTLINE_VARIANT),
                                     ft.Container(height=20),
+                                    ft.Text(
+                                        "Configure how your passwords are encrypted.",
+                                        size=12,
+                                        color=ft.colors.GREY_600
+                                    ),
+                                    ft.Container(height=10),
                                     self.encryption_algorithm,
+                                    ft.Container(height=5),
+                                    ft.Text(
+                                        "Fernet: Fast and secure, good for most users\nAES-GCM: Advanced industry standard\nChaCha20: Best for older devices",
+                                        size=12,
+                                        color=ft.colors.GREY_600
+                                    ),
                                     ft.Container(height=20),
                                     self.encryption_key_rotation,
+                                    ft.Container(height=5),
+                                    ft.Text(
+                                        "Regularly rotating keys improves security. Manual gives you full control.",
+                                        size=12,
+                                        color=ft.colors.GREY_600
+                                    ),
                                     ft.Container(
                                         content=self.rotate_key_button,
                                         alignment=ft.alignment.center,
@@ -246,9 +385,51 @@ class SettingsTab:
                                     ft.Text(
                                         "Note: Changing the encryption algorithm will re-encrypt all passwords.",
                                         size=12,
-                                        color=ft.colors.GREY_600,
+                                        color=ft.colors.RED_400,
                                         italic=True
                                     )
+                                ], spacing=10),
+                                padding=25
+                            ),
+                            elevation=0,
+                            color=ft.colors.SURFACE,
+                            margin=ft.margin.only(bottom=20)
+                        ),
+                        
+                        # Import/Export section
+                        ft.Card(
+                            content=ft.Container(
+                                content=ft.Column([
+                                    ft.Text("Import & Export", size=16, weight=ft.FontWeight.W_500),
+                                    ft.Divider(height=1, color=ft.colors.OUTLINE_VARIANT),
+                                    ft.Container(height=20),
+                                    ft.Text(
+                                        "Transfer your passwords between devices or create backups.",
+                                        size=12,
+                                        color=ft.colors.GREY_600
+                                    ),
+                                    ft.Container(height=20),
+                                    ft.Row([
+                                        ft.Column([
+                                            ft.Text("Passwords", size=14, weight=ft.FontWeight.W_500),
+                                            ft.Row([
+                                                self.export_button,
+                                                ft.Container(width=10),
+                                                self.import_button
+                                            ])
+                                        ], expand=True),
+                                    ]),
+                                    ft.Container(height=20),
+                                    ft.Row([
+                                        ft.Column([
+                                            ft.Text("All Data", size=14, weight=ft.FontWeight.W_500),
+                                            ft.Row([
+                                                self.backup_button,
+                                                ft.Container(width=10),
+                                                self.restore_button
+                                            ])
+                                        ], expand=True),
+                                    ])
                                 ], spacing=10),
                                 padding=25
                             ),
@@ -282,7 +463,11 @@ class SettingsTab:
             "clipboard_timeout": 30,
             "storage_location": "",
             "create_backups": True,
-            "max_backups": 3
+            "max_backups": 3,
+            "encryption_algorithm": "fernet",
+            "key_rotation": "manual",
+            "auto_logout": False,
+            "logout_timeout": 5
         }
         
         if os.path.exists(self.settings_file):
@@ -333,7 +518,7 @@ class SettingsTab:
             
         # Update the theme toggle icon in the app bar
         for action in self.main_window.app_bar.actions:
-            if isinstance(action, ft.IconButton) and action.tooltip == "Toggle theme":
+            if isinstance(action, ft.IconButton) and action.tooltip == "Toggle Theme":
                 if self.main_window.page.theme_mode == ft.ThemeMode.DARK:
                     action.icon = ft.icons.LIGHT_MODE
                 else:
@@ -360,6 +545,30 @@ class SettingsTab:
             e: Change event
         """
         self.settings["clipboard_timeout"] = self.clipboard_timeout.value
+        self._save_settings()
+    
+    def save_auto_logout_setting(self, e):
+        """
+        Save the auto logout setting.
+        
+        Args:
+            e: Change event
+        """
+        self.settings["auto_logout"] = self.auto_logout_switch.value
+        self._save_settings()
+        
+        # Update logout timeout slider state
+        self.logout_timeout.disabled = not self.auto_logout_switch.value
+        self.main_window.page.update()
+    
+    def save_logout_timeout(self, e):
+        """
+        Save the logout timeout setting.
+        
+        Args:
+            e: Change event
+        """
+        self.settings["logout_timeout"] = self.logout_timeout.value
         self._save_settings()
     
     def save_storage_location(self, e):
@@ -487,51 +696,136 @@ class SettingsTab:
             confirm_key_rotation
         )
     
-    def reset_settings(self, e):
+    def export_passwords(self, e):
         """
-        Reset settings to defaults.
+        Export passwords to a file.
         
         Args:
             e: Click event
         """
-        def confirm_reset():
-            # Reset to defaults
-            self.settings = {
-                "theme": "system",
-                "auto_save": False,
-                "clipboard_timeout": 30,
-                "storage_location": "",
-                "create_backups": True,
-                "max_backups": 3,
-                "encryption_algorithm": "fernet",
-                "key_rotation": "manual"
-            }
-            
-            # Save settings
-            self._save_settings()
-            
-            # Update UI
-            self.theme_dropdown.value = self.settings["theme"]
-            self.auto_save_switch.value = self.settings["auto_save"]
-            self.clipboard_timeout.value = self.settings["clipboard_timeout"]
-            self.storage_location.value = self.settings["storage_location"]
-            self.backup_switch.value = self.settings["create_backups"]
-            self.max_backups.value = self.settings["max_backups"]
-            self.encryption_algorithm.value = self.settings["encryption_algorithm"]
-            self.encryption_key_rotation.value = self.settings["key_rotation"]
-            
-            # Apply theme
-            self.main_window.page.theme_mode = ft.ThemeMode.SYSTEM
-            
-            # Update UI
-            self.main_window.page.update()
-            
-            # Show success message
-            self.main_window.show_snackbar("Settings reset to defaults")
+        def pick_save_result(e: ft.FilePickerResultEvent):
+            if e.path:
+                try:
+                    # Use the PasswordStorage class to export passwords
+                    storage = PasswordStorage()
+                    
+                    # Ask whether to include password values
+                    def export_with_values():
+                        try:
+                            result = storage.export_passwords(e.path, include_values=True)
+                            if result:
+                                self.main_window.show_snackbar(f"Passwords exported to {e.path}")
+                            else:
+                                self.main_window.show_error(f"Failed to export passwords")
+                        except Exception as ex:
+                            self.main_window.show_error(f"Error exporting passwords: {str(ex)}")
+                    
+                    def export_without_values():
+                        try:
+                            result = storage.export_passwords(e.path, include_values=False)
+                            if result:
+                                self.main_window.show_snackbar(f"Passwords exported to {e.path}")
+                            else:
+                                self.main_window.show_error(f"Failed to export passwords")
+                        except Exception as ex:
+                            self.main_window.show_error(f"Error exporting passwords: {str(ex)}")
+                    
+                    # Show dialog to ask about including values
+                    self.main_window.page.dialog = ft.AlertDialog(
+                        title=ft.Text("Export Options", weight=ft.FontWeight.W_300),
+                        content=ft.Text("Do you want to include the actual password values in the export file?"),
+                        actions=[
+                            ft.TextButton("No (Safer)", on_click=lambda _: (self.main_window.close_dialog(_), export_without_values())),
+                            ft.TextButton("Yes (Include passwords)", on_click=lambda _: (self.main_window.close_dialog(_), export_with_values()))
+                        ],
+                        actions_alignment=ft.MainAxisAlignment.END
+                    )
+                    self.main_window.page.dialog.open = True
+                    self.main_window.page.update()
+                    
+                except Exception as ex:
+                    self.main_window.show_error(f"Error exporting passwords: {str(ex)}")
         
-        # Show confirmation dialog
-        self.main_window.show_confirm_dialog(
-            "Reset Settings",
-            "Are you sure you want to reset all settings to their default values?",
-            confirm_reset
+        # Create file picker
+        file_picker = ft.FilePicker(on_result=pick_save_result)
+        self.main_window.page.overlay.append(file_picker)
+        self.main_window.page.update()
+        
+        # Open save dialog
+        file_picker.save_file(
+            dialog_title="Export Passwords",
+            file_name="passwords.json",
+            allowed_extensions=["json"]
         )
+    
+    def import_passwords(self, e):
+        """
+        Import passwords from a file.
+        
+        Args:
+            e: Click event
+        """
+        def pick_file_result(e: ft.FilePickerResultEvent):
+            if e.path:
+                def confirm_import():
+                    try:
+                        # Use the PasswordStorage class to import passwords
+                        storage = PasswordStorage()
+                        imported_count = storage.import_passwords(e.path)
+                        
+                        if imported_count > 0:
+                            self.main_window.show_snackbar(f"Successfully imported {imported_count} passwords")
+                            
+                            # Refresh the storage tab
+                            if hasattr(self.main_window, 'storage_tab') and hasattr(self.main_window.storage_tab, '_load_passwords'):
+                                self.main_window.storage_tab._load_passwords()
+                        else:
+                            self.main_window.show_error("No passwords were imported")
+                            
+                    except Exception as ex:
+                        self.main_window.show_error(f"Error importing passwords: {str(ex)}")
+                
+                # Show confirmation dialog
+                self.main_window.show_confirm_dialog(
+                    "Import Passwords",
+                    "This will import passwords from the selected file. Continue?",
+                    confirm_import
+                )
+        
+        # Create file picker
+        file_picker = ft.FilePicker(on_result=pick_file_result)
+        self.main_window.page.overlay.append(file_picker)
+        self.main_window.page.update()
+        
+        # Open file picker
+        file_picker.pick_files(
+            dialog_title="Import Passwords",
+            allowed_extensions=["json"],
+            allow_multiple=False
+        )
+    
+    def backup_data(self, e):
+        """
+        Backup all application data.
+        
+        Args:
+            e: Click event
+        """
+        def pick_directory_result(e: ft.FilePickerResultEvent):
+            if e.path:
+                try:
+                    # Create backup directory with timestamp
+                    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                    backup_dir = os.path.join(e.path, f"password_generator_backup_{timestamp}")
+                    os.makedirs(backup_dir, exist_ok=True)
+                    
+                    # Get storage location
+                    storage_dir = self.settings.get("storage_location", "./storage")
+                    if not os.path.isabs(storage_dir):
+                        storage_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", storage_dir)
+                    
+                    # Copy password files to backup directory
+                    if os.path.exists(storage_dir):
+                        for filename in os.listdir(storage_dir):
+                            src_file = os.path.join(storage_dir, filename)
+                            if os.path

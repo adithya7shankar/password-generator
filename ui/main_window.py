@@ -1,10 +1,13 @@
 import flet as ft
+import logging
 from typing import List, Dict, Any, Optional, Callable
 
 from ui.generator_tab import GeneratorTab
 from ui.storage_tab import StorageTab
 from ui.constraints_tab import ConstraintsTab
 from ui.settings_tab import SettingsTab
+from ui.health_dashboard import HealthDashboard
+from ui.secure_notes_tab import SecureNotesTab
 
 class MainWindow:
     """
@@ -33,25 +36,32 @@ class MainWindow:
         self.page.on_resize = self.handle_resize
         self.page.window_center()  # Center the window on screen
         
+        # Initialize logger
+        self.logger = logging.getLogger(__name__)
+        
         # Initialize tabs
         self.generator_tab = GeneratorTab(self)
         self.storage_tab = StorageTab(self)
         self.constraints_tab = ConstraintsTab(self)
         self.settings_tab = SettingsTab(self)
+        self.health_dashboard = HealthDashboard(self)
+        self.secure_notes_tab = SecureNotesTab(self)
         
-        # Create app bar with minimalist design
+        # Create app bar with menu
         self.app_bar = ft.AppBar(
-            title=ft.Text("Password Generator", weight=ft.FontWeight.W_300),
-            center_title=True,
+            leading=ft.Icon(ft.icons.LOCK_OUTLINE),
+            leading_width=40,
+            title=ft.Text("Password Generator", weight=ft.FontWeight.BOLD),
+            center_title=False,
             bgcolor=ft.colors.SURFACE_VARIANT,
             actions=[
                 ft.IconButton(
-                    icon=ft.icons.DARK_MODE if self.page.theme_mode == ft.ThemeMode.LIGHT else ft.icons.LIGHT_MODE,
-                    tooltip="Toggle theme",
+                    icon=ft.icons.BRIGHTNESS_6_OUTLINED, 
+                    tooltip="Toggle Theme",
                     on_click=self.toggle_theme
                 ),
                 ft.IconButton(
-                    icon=ft.icons.INFO,
+                    icon=ft.icons.INFO_OUTLINE,
                     tooltip="About",
                     on_click=self.show_about
                 )
@@ -75,6 +85,16 @@ class MainWindow:
                     content=self.storage_tab.build()
                 ),
                 ft.Tab(
+                    text="Health",
+                    icon=ft.icons.HEALTH_AND_SAFETY,
+                    content=self.health_dashboard.build()
+                ),
+                ft.Tab(
+                    text="Notes",
+                    icon=ft.icons.NOTE,
+                    content=self.secure_notes_tab.build()
+                ),
+                ft.Tab(
                     text="Constraints",
                     icon=ft.icons.RULE,
                     content=self.constraints_tab.build()
@@ -85,7 +105,8 @@ class MainWindow:
                     content=self.settings_tab.build()
                 )
             ],
-            expand=1
+            expand=1,
+            on_change=self.handle_tab_change
         )
         
         # Set up the page layout with minimalist design
@@ -237,4 +258,28 @@ class MainWindow:
         Args:
             e: Resize event
         """
+        # Update the layout to adapt to the new window size
+        self.page.update()
+    
+    def handle_tab_change(self, e):
+        """
+        Handle tab change event with improved error handling.
+        
+        Args:
+            e: Change event
+        """
+        index = e.control.selected_index
+        
+        # Special case handlers for tabs with error handling
+        try:
+            if index == 1 and hasattr(self.storage_tab, '_load_passwords'):
+                self.storage_tab._load_passwords()
+            elif index == 2 and hasattr(self.health_dashboard, 'analyze_passwords'):
+                self.health_dashboard.analyze_passwords()
+            elif index == 3 and hasattr(self.secure_notes_tab, 'on_tab_activate'):
+                self.secure_notes_tab.on_tab_activate()
+        except Exception as tab_error:
+            self.logger.error(f"Error activating tab {index}: {tab_error}")
+            self.show_error(f"Could not load tab {index}")
+            
         self.page.update()

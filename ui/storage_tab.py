@@ -25,7 +25,8 @@ class StorageTab:
             hint_text="Search by website, username, or notes",
             prefix_icon=ft.icons.SEARCH,
             on_change=self.search_passwords,
-            expand=True
+            expand=True,
+            border_radius=8  # Add border radius for consistent styling
         )
         
         self.category_filter = ft.Dropdown(
@@ -190,7 +191,7 @@ class StorageTab:
                 ]),
                 
                 # Password list and details section
-                ft.Row([
+                ft.ResponsiveRow([
                     # Password list
                     ft.Container(
                         content=ft.Column([
@@ -202,18 +203,20 @@ class StorageTab:
                                 padding=10,
                                 expand=True
                             )
-                        ]),
+                        ], expand=True),
                         expand=True,
-                        margin=ft.margin.only(right=10)
+                        margin=ft.margin.only(right=10),
+                        col={"sm": 12, "md": 6, "lg": 5, "xl": 4}
                     ),
                     
                     # Password details
                     ft.Container(
                         content=ft.Column([
                             self.password_details
-                        ]),
+                        ], expand=True),
                         expand=True,
-                        margin=ft.margin.only(left=10)
+                        margin=ft.margin.only(left=10),
+                        col={"sm": 12, "md": 6, "lg": 7, "xl": 8}
                     )
                 ], expand=True),
                 
