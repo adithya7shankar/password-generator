@@ -60,6 +60,8 @@ class GeneratorTab:
             read_only=True,
             password=False,  # Initialize as visible
             expand=True,
+            value="",  # Initialize with empty string
+            text_size=16,  # Larger text size for better visibility
             suffix=ft.Row([
                 ft.IconButton(
                     icon=ft.icons.VISIBILITY_OFF,  # Start with visibility off icon since password is visible
@@ -427,45 +429,55 @@ class GeneratorTab:
         constraints['min_length'] = custom_length
         constraints['max_length'] = custom_length
         
-        password = self.password_generator.generate_password(keywords, constraints)
-        
-        # Update UI
-        self.generated_password.value = password
-        
-        # Check password strength
-        strength = self.password_generator.check_password_strength(password)
-        
-        # Update strength indicators
-        self.password_strength_bar.value = strength['score'] / 100
-        self.strength_label.value = f"{strength['score']}%"
-        
-        # Set color based on strength
-        if strength['score'] < 50:
-            self.password_strength_bar.color = ft.colors.RED
-        elif strength['score'] < 80:
-            self.password_strength_bar.color = ft.colors.ORANGE
-        else:
-            self.password_strength_bar.color = ft.colors.GREEN
-        
-        # Update visual strength meter
-        for i, indicator in enumerate(self.strength_indicators):
-            if i == 0:  # First indicator always visible
-                indicator.visible = True
+        try:
+            password = self.password_generator.generate_password(keywords, constraints)
+            
+            # Update UI - make sure password is visible initially
+            self.generated_password.value = password
+            self.generated_password.password = False  # Ensure password is visible
+            
+            # Update the visibility icon to show the correct state
+            # Find the visibility toggle button and update its icon
+            for control in self.generated_password.suffix.controls:
+                if isinstance(control, ft.IconButton) and control.tooltip == "Show/Hide Password":
+                    control.icon = ft.icons.VISIBILITY_OFF  # Show the "visibility_off" icon when password is visible
+            
+            # Check password strength
+            strength = self.password_generator.check_password_strength(password)
+            
+            # Update strength indicators
+            self.password_strength_bar.value = strength['score'] / 100
+            self.strength_label.value = f"{strength['score']}%"
+            
+            # Set color based on strength
+            if strength['score'] < 50:
+                self.password_strength_bar.color = ft.colors.RED
+            elif strength['score'] < 80:
+                self.password_strength_bar.color = ft.colors.ORANGE
             else:
-                # Show indicators based on strength score
-                indicator.visible = strength['score'] >= (i * 25)
-        
-        # Update feedback
-        if strength['feedback']:
-            self.feedback_text.value = ", ".join(strength['feedback'])
-        else:
-            self.feedback_text.value = "No issues found"
-        
-        # Add to history
-        self._add_to_history(password, strength['score'])
-        
-        # Update the UI
-        self.main_window.page.update()
+                self.password_strength_bar.color = ft.colors.GREEN
+            
+            # Update visual strength meter
+            for i, indicator in enumerate(self.strength_indicators):
+                if i == 0:  # First indicator always visible
+                    indicator.visible = True
+                else:
+                    # Show indicators based on strength score
+                    indicator.visible = strength['score'] >= (i * 25)
+            
+            # Update feedback
+            if strength['feedback']:
+                self.feedback_text.value = ", ".join(strength['feedback'])
+            else:
+                self.feedback_text.value = "No issues found"
+            
+            # Add to history
+            self._add_to_history(password, strength['score'])
+            
+            # Ensure the UI is updated immediately
+            self.main_window.page.update()
+        except Exception as e:
+            self.main_window.show_error(f"Error generating password: {str(e)}")
     
     def _add_to_history(self, password, strength_score):
         """
@@ -565,6 +577,15 @@ class GeneratorTab:
         self.username_input.value = ""
         self.notes_input.value = ""
         
+        # Get the storage tab to refresh its password list
+        storage_tab = None
+        if hasattr(self.main_window, 'tabs') and len(self.main_window.tabs) > 1:
+            storage_tab = self.main_window.tabs[1]  # Index 1 should be the storage tab
+        
+        # Refresh the storage tab password list if it exists
+        if storage_tab and hasattr(storage_tab, '_load_passwords'):
+            storage_tab._load_passwords()
+        
         # Update the UI
         self.main_window.page.update()
         
@@ -585,9 +606,9 @@ class GeneratorTab:
         # When password=True (hidden), show VISIBILITY icon (eye open)
         # When password=False (visible), show VISIBILITY_OFF icon (eye with slash)
         if self.generated_password.password:
-            e.control.icon = ft.icons.VISIBILITY
+            e.control.icon = ft.icons.VISIBILITY  # Show the "visibility" icon when password is hidden
         else:
-            e.control.icon = ft.icons.VISIBILITY_OFF
-            
-        # Update the UI
+            e.control.icon = ft.icons.VISIBILITY_OFF  # Show the "visibility_off" icon when password is visible
+        
+        # Ensure the password field is updated
         self.main_window.page.update()

@@ -336,6 +336,13 @@ class StorageTab:
         
         # Update UI fields
         self.password_value.value = password.value
+        self.password_value.password = True  # Ensure password is initially hidden
+        
+        # Make sure buttons associated with password field have correct icons
+        for control in self.password_value.suffix.controls:
+            if isinstance(control, ft.IconButton) and control.tooltip == "Show/Hide Password":
+                control.icon = ft.icons.VISIBILITY  # Show the "visibility" icon when password is hidden
+        
         self.website_value.value = password.website
         self.username_value.value = password.username
         self.category_value.value = password.category

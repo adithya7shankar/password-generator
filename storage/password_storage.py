@@ -213,19 +213,22 @@ class PasswordStorage:
     
     def _decrypt(self, encrypted_data: str) -> str:
         """
-        Decrypt a string.
+        Decrypt data using the encryption key.
         
         Args:
-            encrypted_data: Base64-encoded encrypted string
+            encrypted_data: Encrypted data
             
         Returns:
-            Decrypted string
+            Decrypted data
         """
         try:
-            return self.cipher.decrypt(encrypted_data.encode()).decode()
+            if not encrypted_data:
+                return ""
+            decrypted_bytes = self.cipher.decrypt(encrypted_data.encode())
+            return decrypted_bytes.decode()
         except Exception as e:
             print(f"Error decrypting data: {e}")
-            return "[Decryption Error]"
+            return "[Error: Could not decrypt]"
     
     def _load_passwords(self) -> None:
         """

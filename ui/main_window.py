@@ -212,4 +212,9 @@ class MainWindow:
             index: Tab index to navigate to
         """
         self.tabs.selected_index = index
+        
+        # If navigating to the storage tab (index 1), refresh the password list
+        if index == 1 and hasattr(self.storage_tab, '_load_passwords'):
+            self.storage_tab._load_passwords()
+            
         self.page.update()
